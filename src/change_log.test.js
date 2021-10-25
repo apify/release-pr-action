@@ -9,6 +9,7 @@ test('log correctly prepared', () => {
         'feat(api): Api change for user',
         'feat(app, api, ci): App + Api change for user',
         'fix(ci): Some ci fix should be internal',
+        'feat(api): New cool feature in API 💥 (#46)',
     ];
     const result = prepareChangeLog(gitMessages);
     expect(result).toEqual(`:rocket: _User-facing_
@@ -18,6 +19,7 @@ test('log correctly prepared', () => {
 
 **Api**
 * Api change for user
+* New cool feature in API 💥
 
 :nerd_face: _Admin_
 

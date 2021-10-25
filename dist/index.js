@@ -29834,6 +29834,8 @@ function prepareChangeLog(gitMessages) {
         .map((commitMessage) => commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN }))
         .filter((parsed) => !!parsed.subject) // Filter out commits that didn't match conventional commit
         .map((parsed) => {
+            // Remove links on github PR/issue, it will not look good in slack message
+            parsed.subject = parsed.subject.replace(/\(#\d+\)/g, '').trim();
             const flagsInMessage = parsed.subject.match(/\[([^\]]*)\]/g);
             parsed.flags = flagsInMessage && flagsInMessage.map((flag) => {
                 parsed.subject = parsed.subject.replace(flag, '').trim();
