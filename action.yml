@@ -1,0 +1,13 @@
+name: 'Release pull request'
+description: 'It creates release pull request'
+inputs:
+  repo-token:
+    required: true
+    description: 'Repository Github token'
+  base-branch:
+    required: false
+    default: master
+    description: 'Base branch where you want to do release pull request'
+runs:
+  using: 'node12'
+  main: 'dist/index.js'

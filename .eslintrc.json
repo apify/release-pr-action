@@ -1,0 +1,4 @@
+{
+    "extends": [ "@apify", "plugin:jest/recommended" ],
+    "plugins": ["jest"]
+}
