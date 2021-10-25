@@ -32,9 +32,16 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+          
+      - name: clone release-pr-action
+        uses: actions/checkout@v2
+        with:
+          repository: apify/release-pr-action
+          ref: refs/tags/v1.0.0
+          path: ./.github/actions/release-pr-action
 
-      - name: run gitflow release
-        uses: ./.github/actions/gitflow-release
+      - name: run release-pr-action
+        uses: ./.github/actions/release-pr-action
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           base-branch: main
