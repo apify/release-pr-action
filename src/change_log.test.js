@@ -10,6 +10,7 @@ test('log correctly prepared', () => {
         'feat(app, api, ci): App + Api change for user',
         'fix(ci): Some ci fix should be internal',
         'feat(api): New cool feature in API 💥 (#46)',
+        'feat(intl): Change sign-up text (#46)',
     ];
     const result = prepareChangeLog(gitMessages);
     expect(result).toEqual(`:rocket: _User-facing_
@@ -29,6 +30,7 @@ test('log correctly prepared', () => {
 :house: _Internal_
 * Api: Api internal change
 * Some ci fix should be internal
+* Change sign-up text
 
 `);
 });
