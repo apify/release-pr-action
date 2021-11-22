@@ -16,6 +16,7 @@ const GIT_MESSAGE_FLAGS = {
     ADMIN: 'admin',
 };
 const GIT_COMMIT_APP_SCOPE = 'app';
+const GIT_COMMIT_CONSOLE_SCOPE = 'console';
 const GIT_COMMIT_API_SCOPE = 'api';
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
@@ -26,7 +27,7 @@ function changeLogForSlack({ user, admin, internal }) {
         text += ':rocket: _User-facing_\n\n';
     }
     if (user.app.length) {
-        text += `**App**\n${user.app.map((entry) => `* ${entry}`)
+        text += `**Console**\n${user.app.map((entry) => `* ${entry}`)
             .join('\n')}\n\n`;
     }
     if (user.api.length) {
@@ -37,7 +38,7 @@ function changeLogForSlack({ user, admin, internal }) {
         text += ':nerd_face: _Admin_\n\n';
     }
     if (admin.app.length) {
-        text += `**App**\n${admin.app.map((entry) => `* ${entry}`)
+        text += `**Console**\n${admin.app.map((entry) => `* ${entry}`)
             .join('\n')}\n\n`;
     }
     if (admin.api.length) {
@@ -88,9 +89,9 @@ function prepareChangeLog(gitMessages) {
             return true;
         })
         .forEach((entry) => {
-            if (entry.scopes && entry.scopes.includes(GIT_COMMIT_APP_SCOPE)) {
+            if (entry.scopes && (entry.scopes.includes(GIT_COMMIT_APP_SCOPE) || entry.scopes.includes(GIT_COMMIT_CONSOLE_SCOPE))) {
                 if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.INTERNAL)) {
-                    changelogStructure.internal.push(`App: ${entry.subject}`);
+                    changelogStructure.internal.push(`Console: ${entry.subject}`);
                 } else if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
                     changelogStructure.admin.app.push(entry.subject);
                 } else {

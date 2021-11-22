@@ -3,6 +3,7 @@ const { prepareChangeLog } = require('./change_log');
 test('log correctly prepared', () => {
     const gitMessages = [
         'feat(app): some admin change [admin]',
+        'feat(console): feature with console scope',
         'feat(api): Api internal change [internal]',
         'chore(ci, app, api): Change to ignore [skip ci]',
         'chore(ci): Change to ignore [ignore][admin]',
@@ -15,7 +16,8 @@ test('log correctly prepared', () => {
     const result = prepareChangeLog(gitMessages);
     expect(result).toEqual(`:rocket: _User-facing_
 
-**App**
+**Console**
+* feature with console scope
 * App + Api change for user
 
 **Api**
@@ -24,7 +26,7 @@ test('log correctly prepared', () => {
 
 :nerd_face: _Admin_
 
-**App**
+**Console**
 * some admin change
 
 :house: _Internal_
