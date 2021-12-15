@@ -46,7 +46,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           base-branch: main
-          changelog-scopes: "{ Console: ['app', 'console'], Api: ['api'] }"
+          changelog-scopes: '{ "Console": ["app", "console"], "Api": ["api"] }'
 ```
 
 # Contribution

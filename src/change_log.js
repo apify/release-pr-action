@@ -21,21 +21,26 @@ const GIT_COMMIT_CI_SCOPE = 'ci';
 
 function changeLogForSlack(changelogStructure, scopes) {
     const whitelistedScopes = Object.keys(scopes);
-    const scopesText = whitelistedScopes.map((scope) => {
-        let text = `**${scope}**\n\n`;
-        if (changelogStructure.user[scope].length) {
-            text += `:rocket: _User-facing_\n${changelogStructure.user[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
-        }
+    const scopesText = whitelistedScopes
+        // filter out empty scopes
+        .filter((scope) => (changelogStructure.user[scope].length
+            || changelogStructure.admin[scope].length
+            || changelogStructure.internal[scope].length))
+        .map((scope) => {
+            let text = `**${scope}**\n\n`;
+            if (changelogStructure.user[scope].length) {
+                text += `:rocket: _User-facing_\n${changelogStructure.user[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+            }
 
-        if (changelogStructure.admin[scope].length) {
-            text += `:nerd_face: _Admin_\n${changelogStructure.admin[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
-        }
+            if (changelogStructure.admin[scope].length) {
+                text += `:nerd_face: _Admin_\n${changelogStructure.admin[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+            }
 
-        if (changelogStructure.internal[scope].length) {
-            text += `:house: _Internal_\n${changelogStructure.internal[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
-        }
-        return text;
-    });
+            if (changelogStructure.internal[scope].length) {
+                text += `:house: _Internal_\n${changelogStructure.internal[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+            }
+            return text;
+        });
     return scopesText.join('---\n\n');
 }
 

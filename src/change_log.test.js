@@ -28,7 +28,7 @@ test('log correctly prepared', () => {
 });
 
 test('log correctly prepared for monorepo', () => {
-    const scopes = { Console: ['app', 'console'], Api: ['api'] };
+    const scopes = { Console: ['app', 'console'], Api: ['api'], Empty: ['empty'] };
     const gitMessages = [
         'feat(app): some admin change [admin]',
         'feat(console): feature with console scope',

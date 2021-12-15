@@ -6,7 +6,6 @@ inputs:
     description: 'Repository Github token'
   changelog-scopes:
     required: true
-    default: master
     description: 'Scopes which will be used in changelog (the first scope will be used as default for commit messages without scope)'
   base-branch:
     required: false
