@@ -1,6 +1,34 @@
 const { prepareChangeLog } = require('./change_log');
 
 test('log correctly prepared', () => {
+    const scopes = { Worker: ['worker'] };
+    const gitMessages = [
+        'feat: some admin change [admin]',
+        'feat: just new feature with scope',
+        'feat(worker): worker scope internal change [internal]',
+        'chore(ci): Change to ignore [skip ci]',
+        'feat(worker): Update packages [internal]',
+        'feat: Change sign-up text (#46)',
+    ];
+    const result = prepareChangeLog(gitMessages, scopes);
+    expect(result).toEqual(`**Worker**
+
+:rocket: _User-facing_
+* just new feature with scope
+* Change sign-up text
+
+:nerd_face: _Admin_
+* some admin change
+
+:house: _Internal_
+* worker scope internal change
+* Update packages
+
+`);
+});
+
+test('log correctly prepared for monorepo', () => {
+    const scopes = { Console: ['app', 'console'], Api: ['api'] };
     const gitMessages = [
         'feat(app): some admin change [admin]',
         'feat(console): feature with console scope',
@@ -13,26 +41,30 @@ test('log correctly prepared', () => {
         'feat(api): New cool feature in API 💥 (#46)',
         'feat(intl): Change sign-up text (#46)',
     ];
-    const result = prepareChangeLog(gitMessages);
-    expect(result).toEqual(`:rocket: _User-facing_
+    const result = prepareChangeLog(gitMessages, scopes);
+    expect(result).toEqual(`**Console**
 
-**Console**
+:rocket: _User-facing_
 * feature with console scope
 * App + Api change for user
 
-**Api**
-* Api change for user
-* New cool feature in API 💥
-
 :nerd_face: _Admin_
-
-**Console**
 * some admin change
 
 :house: _Internal_
-* Api: Api internal change
 * Some ci fix should be internal
 * Change sign-up text
+
+---
+
+**Api**
+
+:rocket: _User-facing_
+* Api change for user
+* New cool feature in API 💥
+
+:house: _Internal_
+* Api internal change
 
 `);
 });

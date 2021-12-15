@@ -9,10 +9,11 @@ This action is used in apify repositories to create release pull request based o
 
 # Action input
 
-| Name         | Description                                        | Example        | Required |
-| -------------| -------------------------------------------------- | ---------------| -------- |
-| `repo-token` | Repository Github token                            | `github-token` |      yes |
-| `base-branch`| Based branch where pull request will be created    | `master`       |       no |
+| Name              | Description                                        | Example                 | Required |
+| ------------------| -------------------------------------------------- | ------------------------| -------- |
+| `repo-token`      | Repository Github token                            | `github-token`          |      yes |
+| `base-branch`     | Based branch where pull request will be created    | `master`                |       no |
+| `changelog-scopes`| Scopes, that will be show in changelog             | `{"Worker": ["worker"]}`|       yes |
 
 # Example usage
 
@@ -45,6 +46,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           base-branch: main
+          changelog-scopes: "{ Console: ['app', 'console'], Api: ['api'] }"
 ```
 
 # Contribution

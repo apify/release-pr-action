@@ -29784,56 +29784,43 @@ const GIT_MESSAGE_FLAGS = {
     INTERNAL: 'internal',
     ADMIN: 'admin',
 };
-const GIT_COMMIT_APP_SCOPE = 'app';
-const GIT_COMMIT_CONSOLE_SCOPE = 'console';
-const GIT_COMMIT_API_SCOPE = 'api';
+
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
 
-function changeLogForSlack({ user, admin, internal }) {
-    let text = '';
-    if (user.app.length || user.api.length) {
-        text += ':rocket: _User-facing_\n\n';
-    }
-    if (user.app.length) {
-        text += `**Console**\n${user.app.map((entry) => `* ${entry}`)
-            .join('\n')}\n\n`;
-    }
-    if (user.api.length) {
-        text += `**Api**\n${user.api.map((entry) => `* ${entry}`)
-            .join('\n')}\n\n`;
-    }
-    if (admin.app.length || admin.api.length) {
-        text += ':nerd_face: _Admin_\n\n';
-    }
-    if (admin.app.length) {
-        text += `**Console**\n${admin.app.map((entry) => `* ${entry}`)
-            .join('\n')}\n\n`;
-    }
-    if (admin.api.length) {
-        text += `**Api**\n${admin.api.map((entry) => `* ${entry}`)
-            .join('\n')}\n\n`;
-    }
-    if (internal.length) {
-        text += `:house: _Internal_\n${internal.map((entry) => `* ${entry}`)
-            .join('\n')}\n\n`;
-    }
-    return text;
+function changeLogForSlack(changelogStructure, scopes) {
+    const whitelistedScopes = Object.keys(scopes);
+    const scopesText = whitelistedScopes.map((scope) => {
+        let text = `**${scope}**\n\n`;
+        if (changelogStructure.user[scope].length) {
+            text += `:rocket: _User-facing_\n${changelogStructure.user[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+        }
+
+        if (changelogStructure.admin[scope].length) {
+            text += `:nerd_face: _Admin_\n${changelogStructure.admin[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+        }
+
+        if (changelogStructure.internal[scope].length) {
+            text += `:house: _Internal_\n${changelogStructure.internal[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+        }
+        return text;
+    });
+    return scopesText.join('---\n\n');
 }
 
-function prepareChangeLog(gitMessages) {
+function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
+    const whitelistedScopes = Object.keys(scopes);
     const changelogStructure = {
-        user: {
-            app: [],
-            api: [],
-        },
-        admin: {
-            app: [],
-            api: [],
-        },
-        internal: [],
+        user: {},
+        admin: {},
+        internal: {},
     };
+    whitelistedScopes.map((scope) => {
+        changelogStructure.user[scope] = [];
+        changelogStructure.admin[scope] = [];
+        changelogStructure.internal[scope] = [];
+    });
 
     gitMessages
         .map((commitMessage) => commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN }))
@@ -29858,40 +29845,80 @@ function prepareChangeLog(gitMessages) {
             return true;
         })
         .forEach((entry) => {
-            if (entry.scopes && (entry.scopes.includes(GIT_COMMIT_APP_SCOPE) || entry.scopes.includes(GIT_COMMIT_CONSOLE_SCOPE))) {
-                if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.INTERNAL)) {
-                    changelogStructure.internal.push(`Console: ${entry.subject}`);
-                } else if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
-                    changelogStructure.admin.app.push(entry.subject);
-                } else {
-                    changelogStructure.user.app.push(entry.subject);
-                }
-            } else if (entry.scopes && entry.scopes.includes(GIT_COMMIT_API_SCOPE)) {
-                if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.INTERNAL)) {
-                    changelogStructure.internal.push(`Api: ${entry.subject}`);
-                } else if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
-                    changelogStructure.admin.api.push(entry.subject);
-                } else {
-                    changelogStructure.user.api.push(entry.subject);
-                }
-            } else if (entry.scopes
-                && entry.scopes.length === 1
-                && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
-                // Consider single scope with infra or ci as internal changes
-                changelogStructure.internal.push(entry.subject);
+            // Consider the first scope as default
+            const defaultScope = whitelistedScopes[0];
+            // Check if change is user-facing/internal/admin
+            let changeType = 'user'; // User-facing is by default
+            if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.INTERNAL)) {
+                changeType = 'internal';
+            } else if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
+                changeType = 'admin';
+            }
+
+            // Consider single scope with infra or ci as internal changes
+            if (entry.scopes && entry.scopes.length === 1
+            && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
+                changeType = 'internal';
+            }
+
+            // Find the scope of change
+            if (!entry.scopes || entry.scopes.length === 0) {
+                // Consider the first scope as default and use it for commits without scope
+                changelogStructure[changeType][defaultScope].push(entry.subject);
             } else {
-                // TODO: What about the rest?
-                // For now consider the rest as internal changes
-                if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
-                    changelogStructure.admin.api.push(entry.subject);
-                } else {
-                    changelogStructure.internal.push(entry.subject);
+                let scopeFound = false;
+                for (const scope of whitelistedScopes) {
+                    const targetScopes = scopes[scope];
+                    const scopeMatch = entry.scopes.find((entryScope) => targetScopes.includes(entryScope));
+                    if (scopeMatch) {
+                        changelogStructure[changeType][scope].push(entry.subject);
+                        scopeFound = true;
+                        break;
+                    }
                 }
-                core.warning(`Cannot properly set scope into change log for commit message: ${entry.subject}`);
+                if (!scopeFound) {
+                    // TODO: What about commit with different scope
+                    // For now consider the rest as internal changes
+                    changelogStructure.internal[defaultScope].push(entry.subject);
+                    core.warning(`Cannot properly set scope into change log for commit message: ${entry.subject}`);
+                }
             }
         });
+    // .forEach((entry) => {
+    //     if (entry.scopes && (entry.scopes.includes(GIT_COMMIT_APP_SCOPE) || entry.scopes.includes(GIT_COMMIT_CONSOLE_SCOPE))) {
+    //         if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.INTERNAL)) {
+    //             changelogStructure.internal.push(`Console: ${entry.subject}`);
+    //         } else if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
+    //             changelogStructure.admin.app.push(entry.subject);
+    //         } else {
+    //             changelogStructure.user.app.push(entry.subject);
+    //         }
+    //     } else if (entry.scopes && entry.scopes.includes(GIT_COMMIT_API_SCOPE)) {
+    //         if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.INTERNAL)) {
+    //             changelogStructure.internal.push(`Api: ${entry.subject}`);
+    //         } else if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
+    //             changelogStructure.admin.api.push(entry.subject);
+    //         } else {
+    //             changelogStructure.user.api.push(entry.subject);
+    //         }
+    //     } else if (entry.scopes
+    //         && entry.scopes.length === 1
+    //         && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
+    //         // Consider single scope with infra or ci as internal changes
+    //         changelogStructure.internal.push(entry.subject);
+    //     } else {
+    //         // TODO: What about the rest?
+    //         // For now consider the rest as internal changes
+    //         if (entry.flags && entry.flags.includes(GIT_MESSAGE_FLAGS.ADMIN)) {
+    //             changelogStructure.admin.api.push(entry.subject);
+    //         } else {
+    //             changelogStructure.internal.push(entry.subject);
+    //         }
+    //         core.warning(`Cannot properly set scope into change log for commit message: ${entry.subject}`);
+    //     }
+    // });
 
-    const releaseChangelog = changeLogForSlack(changelogStructure);
+    const releaseChangelog = changeLogForSlack(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
     return releaseChangelog;
@@ -30156,18 +30183,26 @@ const exec = promisify(childProcess.exec);
 
 async function run() {
     const repoToken = core.getInput('repo-token');
+    const changelogScopes = core.getInput('changelog-scopes');
     const baseBranch = core.getInput('base-branch') || 'master';
     const { ref } = github.context;
     const version = ref.split('/').pop();
     const branch = ref.split('heads/').pop();
     const repoOctokit = github.getOctokit(repoToken);
 
+    let scopes;
+    try {
+        scopes = JSON.parse(changelogScopes);
+    } catch (err) {
+        throw new Error('The changelog-scopes input cannot be parsed as JSON.');
+    }
+
     // Fetch both branches with history and git message log diff
     await exec(`git fetch origin ${baseBranch} ${branch}`);
     const { stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`);
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
 
-    const releaseChangeLog = prepareChangeLog(gitMessages);
+    const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
     await createOrUpdatePullRequest(repoOctokit, {
         owner: github.context.repo.owner,
         repo: github.context.repo.repo,
