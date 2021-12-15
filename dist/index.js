@@ -29810,7 +29810,7 @@ function changeLogForSlack(changelogStructure, scopes) {
             }
             return text;
         });
-    return scopesText.join('---\n\n');
+    return scopesText.join('\n');
 }
 
 function prepareChangeLog(gitMessages, scopes) {
