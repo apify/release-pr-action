@@ -11,6 +11,13 @@ inputs:
     required: false
     default: master
     description: 'Base branch where you want to do release pull request'
+  create-pull-request:
+    required: false
+    default: true
+    description: Whether to create release pull request
+outputs:
+  changelog:
+    description: Changelog content
 runs:
   using: 'node12'
   main: 'dist/index.js'

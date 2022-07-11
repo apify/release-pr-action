@@ -11,6 +11,7 @@ async function run() {
     const repoToken = core.getInput('repo-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const baseBranch = core.getInput('base-branch') || 'master';
+    const createReleasePullRequest = core.getInput('create-pull-request') || true;
     const { ref } = github.context;
     const version = ref.split('/').pop();
     const branch = ref.split('heads/').pop();
@@ -29,15 +30,20 @@ async function run() {
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
 
     const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
-    await createOrUpdatePullRequest(repoOctokit, {
-        owner: github.context.repo.owner,
-        repo: github.context.repo.repo,
-        title: `Release ${version}`,
-        head: branch,
-        base: baseBranch,
-        body: `# Release changelog\n`
-            + `${releaseChangeLog}`,
-    });
+    core.setOutput('changelog', releaseChangeLog);
+
+    if (createReleasePullRequest) {
+        core.info('Opening the release pull request');
+        await createOrUpdatePullRequest(repoOctokit, {
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
+            title: `Release ${version}`,
+            head: branch,
+            base: baseBranch,
+            body: `# Release changelog\n`
+                + `${releaseChangeLog}`,
+        });
+    }
 }
 
 run();
