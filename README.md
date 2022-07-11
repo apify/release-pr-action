@@ -21,9 +21,10 @@ This action is used to create release pull request with:
 
 ## Action output
 
-| Name        | Description       | Example             |
-| ----------- | ----------------- | ------------------- |
-| `changelog` | Changelog content | `some cool feature` |
+| Name        | Description        | Example             |
+| ----------- | ------------------ | ------------------- |
+| `changelog` | Changelog content  | `some cool feature` |
+| `version`   | Version of release | `v0.1.0`            |
 
 ## Example usage
 
@@ -54,7 +55,7 @@ jobs:
 
 ## Contribution
 
-1. Run `fnm use` (or nvm, or any other node manager you use)
+1. Run `fnm use` (or `nvm`, or any other node manager you use)
 2. Update code in `./src`
 3. Run `npm i`
 4. Run `npm run all`

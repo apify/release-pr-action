@@ -30,7 +30,6 @@ async function run() {
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
 
     const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
-    core.setOutput('changelog', releaseChangeLog);
 
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
@@ -41,9 +40,11 @@ async function run() {
             head: branch,
             base: baseBranch,
             body: `# Release changelog\n`
-                + `${releaseChangeLog}`,
+            + `${releaseChangeLog}`,
         });
     }
+    core.setOutput('changelog', releaseChangeLog);
+    core.setOutput('version', version);
 }
 
 run();
