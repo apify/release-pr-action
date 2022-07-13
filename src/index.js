@@ -44,6 +44,9 @@ async function run() {
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
 
+    console.log(`DEBUG: ${releaseChangeLog}`);
+    console.log(`DEBUG: ${createReleasePullRequest === 'true'}`);
+
     if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(repoOctokit, {
