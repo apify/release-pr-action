@@ -25,7 +25,6 @@ This action is used to create release pull request with:
 | Name        | Description        | Example             |
 | ----------- | ------------------ | ------------------- |
 | `changelog` | Changelog content  | `some cool feature` |
-| `version`   | Version of release | `v0.1.0`            |
 
 ## Example usage
 
