@@ -11,7 +11,8 @@ async function run() {
     const repoToken = core.getInput('repo-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const baseBranch = core.getInput('base-branch') || 'master';
-    const createReleasePullRequest = core.getInput('create-pull-request') || true;
+    // inputs are always strings hence default is 'true' and not true
+    const createReleasePullRequest = core.getInput('create-pull-request') || 'true';
     const compareMethod = core.getInput('compare-method') || 'branch';
     const { ref } = github.context;
     const version = ref.split('/').pop();
@@ -43,7 +44,7 @@ async function run() {
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
 
-    if (createReleasePullRequest) {
+    if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(repoOctokit, {
             owner: github.context.repo.owner,
