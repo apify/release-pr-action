@@ -32,9 +32,9 @@ async function run() {
         ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
     } else if (compareMethod === 'tag') {
         // fetch base branch and get commit history from latest tag. If tag is not found fetch whole history.
-        await exec('git rev-list --tags --max-count=1');
+        await exec(`git fetch origin ${baseBranch}`);
         const { stdout: tag } = await exec(`git describe --tags --abbrev=0`);
-        const start = tag ? `${tag}..` : '';
+        const start = tag ? `${tag.replace(/[\r\n]/gm, '')}..` : '';
         ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' ${start}HEAD`));
     } else {
         throw new Error(`Unrecognized "compare-method" value: ${compareMethod}`);
