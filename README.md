@@ -12,12 +12,13 @@ This action is used to create release pull request with:
 
 ## Action input
 
-| Name                  | Description                                        | Example                  | Required |
-| --------------------- | -------------------------------------------------- | ------------------------ | -------- |
-| `repo-token`          | Repository Github token                            | `github-token`           |      yes |
-| `changelog-scopes`    | Scopes, that will be show in changelog             | `{"Worker": ["worker"]}` |      yes |
-| `base-branch`         | Based branch where pull request will be created    | `master`                 |       no |
-| `create-pull-request` | Whether to create release pull request             | `false`                  |       no |
+| Name                  | Description                                                                    | Example                  | Required |
+|-----------------------|--------------------------------------------------------------------------------|--------------------------|----------|
+| `repo-token`          | Repository Github token                                                        | `github-token`           | yes      |
+| `changelog-scopes`    | Scopes, that will be show in changelog                                         | `{"Worker": ["worker"]}` | yes      |
+| `base-branch`         | Based branch where pull request will be created                                | `master`                 | no       |
+| `create-pull-request` | Whether to create release pull request                                         | `false`                  | no       |
+| `compare-method`      | Fetch commit history, either by diff of head and branch or latest tag and HEAD | `branch` or `tag`        | no       |
 
 ## Action output
 

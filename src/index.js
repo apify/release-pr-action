@@ -12,6 +12,7 @@ async function run() {
     const changelogScopes = core.getInput('changelog-scopes');
     const baseBranch = core.getInput('base-branch') || 'master';
     const createReleasePullRequest = core.getInput('create-pull-request') || true;
+    const compareMethod = core.getInput('compare-method') || 'branch';
     const { ref } = github.context;
     const version = ref.split('/').pop();
     const branch = ref.split('heads/').pop();
@@ -24,11 +25,22 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    // Fetch both branches with history and git message log diff
-    await exec(`git fetch origin ${baseBranch} ${branch}`);
-    const { stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`);
-    const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
+    let gitLog;
+    // Fetch base and head branches with history and git message log diff
+    if (compareMethod === 'branch') {
+        await exec(`git fetch origin ${baseBranch} ${branch}`);
+        ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
+    } else if (compareMethod === 'tag') {
+        // fetch base branch and get commit history from latest tag. If tag is not found fetch whole history.
+        await exec(`git fetch origin ${baseBranch}`);
+        const { stdout: tag } = await exec(`git describe --tags --abbrev=0`);
+        const start = tag ? `${tag}..` : '';
+        ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' ${start}HEAD`));
+    } else {
+        throw new Error(`Unrecognized "compare-method" value: ${compareMethod}`);
+    }
 
+    const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
 
     if (createReleasePullRequest) {
@@ -44,7 +56,6 @@ async function run() {
         });
     }
     core.setOutput('changelog', releaseChangeLog);
-    core.setOutput('version', version);
 }
 
 run();
