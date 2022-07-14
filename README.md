@@ -1,21 +1,32 @@
 # Release pull request action
 
-This action is used in apify repositories to create release pull request based on release branch.
+This action is used to create release pull request with:
 
-# What it does
+- title based on release branch name
+- description containing changelog based on commit messages (conventional commits messages)
 
-* It creates pull request with title of release branch version
-* It generates change log from commits history, which can be shared in apify slack
+## What it does
 
-# Action input
+- It creates pull request with title of release branch version
+- It generates change log from commits history, which can be shared in apify slack
 
-| Name              | Description                                        | Example                 | Required |
-| ------------------| -------------------------------------------------- | ------------------------| -------- |
-| `repo-token`      | Repository Github token                            | `github-token`          |      yes |
-| `base-branch`     | Based branch where pull request will be created    | `master`                |       no |
-| `changelog-scopes`| Scopes, that will be show in changelog             | `{"Worker": ["worker"]}`|       yes |
+## Action input
 
-# Example usage
+| Name                  | Description                                                                    | Example                  | Required |
+|-----------------------|--------------------------------------------------------------------------------|--------------------------|----------|
+| `repo-token`          | Repository Github token                                                        | `github-token`           | yes      |
+| `changelog-scopes`    | Scopes, that will be show in changelog                                         | `{"Worker": ["worker"]}` | yes      |
+| `base-branch`         | Based branch where pull request will be created                                | `master`                 | no       |
+| `create-pull-request` | Whether to create release pull request                                         | `false`                  | no       |
+| `compare-method`      | Fetch commit history, either by diff of head and branch or latest tag and HEAD | `branch` or `tag`        | no       |
+
+## Action output
+
+| Name        | Description        | Example             |
+| ----------- | ------------------ | ------------------- |
+| `changelog` | Changelog content  | `some cool feature` |
+
+## Example usage
 
 ```yaml
 name: Release pull request
@@ -33,26 +44,20 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          
-      - name: clone release-pr-action
-        uses: actions/checkout@v2
-        with:
-          repository: apify/release-pr-action
-          ref: refs/tags/v1.0.0
-          path: ./.github/actions/release-pr-action
 
       - name: run release-pr-action
-        uses: ./.github/actions/release-pr-action
+        uses: apify/release-pr-action
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           base-branch: main
           changelog-scopes: '{ "Console": ["app", "console"], "Api": ["api"] }'
 ```
 
-# Contribution
+## Contribution
 
-1. Update code in `./src`
-2. Run `npm i`
-3. Run `npm run all`
-4. Commit all changes including `./disc` folder with built code.
-5. Publish a new version of action using new release (It needs to be done manually)
+1. Run `fnm use` (or `nvm`, or any other node manager you use)
+2. Update code in `./src`
+3. Run `npm i`
+4. Run `npm run all`
+5. Commit all changes including `./dist` folder with built code.
+6. Publish a new version of action using new release (It needs to be done manually)

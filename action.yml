@@ -11,6 +11,17 @@ inputs:
     required: false
     default: master
     description: 'Base branch where you want to do release pull request'
+  create-pull-request:
+    required: false
+    default: true
+    description: 'Whether to create release pull request'
+  compare-method:
+    required: false
+    default: branch
+    description: 'Fetch commit history, either by diff of head and branch or latest tag and HEAD'
+outputs:
+  changelog:
+    description: 'Changelog content'
 runs:
   using: 'node12'
   main: 'dist/index.js'
