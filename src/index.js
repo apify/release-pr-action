@@ -1,6 +1,7 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
 const childProcess = require('child_process');
+const fs = require('fs/promises');
 const { promisify } = require('util');
 const { prepareChangeLog } = require('./change_log');
 const { createOrUpdatePullRequest } = require('./pr_helper');
@@ -28,8 +29,10 @@ async function run() {
 
     let gitMessages;
     if (compareMethod === 'pull_request') {
-        console.log(`#### DEBUG: ${process.env.GITHUB_REF}`);
-        const prNumber = Number(process.env.GITHUB_REF.split('/')[2]);
+        // Get PR number
+        const eventFileContent = await fs.readFile(process.env.GITHUB_EVENT_PATH);
+        const prNumber = JSON.parse(eventFileContent).pull_request.number;
+
         if (!prNumber) throw new Error('Could not obtain pull request\'s number. Was the workflow trigger "pull_request"?');
         const gitLog = await repoOctokit.rest.pulls.listCommits({
             owner: github.context.repo.owner,
