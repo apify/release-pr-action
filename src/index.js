@@ -28,6 +28,7 @@ async function run() {
 
     let gitMessages;
     if (compareMethod === 'pull_request') {
+        console.log(`#### DEBUG: ${github.context.ref}`);
         const prNumber = Number(github.context.ref.split('/')[2]);
         if (!prNumber) throw new Error('Could not obtain pull request\'s number. Was the workflow trigger "pull_request"?');
         const gitLog = await repoOctokit.rest.pulls.listCommits({
