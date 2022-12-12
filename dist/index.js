@@ -30605,6 +30605,14 @@ module.exports = require("fs");
 
 /***/ }),
 
+/***/ 9225:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("fs/promises");
+
+/***/ }),
+
 /***/ 8605:
 /***/ ((module) => {
 
@@ -30749,6 +30757,7 @@ var __webpack_exports__ = {};
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const childProcess = __nccwpck_require__(3129);
+const fs = __nccwpck_require__(9225);
 const { promisify } = __nccwpck_require__(1669);
 const { prepareChangeLog } = __nccwpck_require__(4921);
 const { createOrUpdatePullRequest } = __nccwpck_require__(7298);
@@ -30774,22 +30783,40 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    let gitLog;
-    // Fetch base and head branches with history and git message log diff
-    if (compareMethod === 'branch') {
-        await exec(`git fetch origin ${baseBranch} ${branch}`);
-        ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
-    } else if (compareMethod === 'tag') {
-        // fetch base branch and get commit history from latest tag. If tag is not found fetch whole history.
-        await exec(`git fetch origin ${baseBranch}`);
-        const { stdout: tag } = await exec(`git describe --tags --abbrev=0`);
-        const start = tag ? `${tag.replace(/[\r\n]/gm, '')}..` : '';
-        ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' ${start}HEAD`));
+    let gitMessages;
+    if (compareMethod === 'pull_request') {
+        // Get PR number
+        const eventFileContent = await fs.readFile(process.env.GITHUB_EVENT_PATH);
+        const prNumber = JSON.parse(eventFileContent).pull_request.number;
+
+        if (!prNumber) throw new Error('Could not obtain pull request\'s number. Was the workflow trigger "pull_request"?');
+        const gitLog = await repoOctokit.rest.pulls.listCommits({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
+            pull_number: prNumber,
+        });
+        gitMessages = gitLog.data.map((commit) => commit.commit.message);
     } else {
-        throw new Error(`Unrecognized "compare-method" value: ${compareMethod}`);
+        let gitLog;
+        // Fetch base and head branches with history and git message log diff
+        if (compareMethod === 'branch') {
+            await exec(`git fetch origin ${baseBranch} ${branch}`);
+            ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
+        } else if (compareMethod === 'tag') {
+            // NOTE: This method does not work as expected, because commits cannot be sorted by merge date,
+            //       thus changelog does not have to contain all the commit messages
+
+            // fetch base branch and get commit history from latest tag. If tag is not found fetch whole history.
+            await exec(`git fetch origin ${baseBranch}`);
+            const { stdout: tag } = await exec(`git describe --tags --abbrev=0`);
+            const start = tag ? `${tag.replace(/[\r\n]/gm, '')}..` : '';
+            ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' ${start}HEAD`));
+        } else {
+            throw new Error(`Unrecognized "compare-method" value: ${compareMethod}`);
+        }
+        gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     }
 
-    const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
 
     if (createReleasePullRequest === 'true') {
@@ -30801,7 +30828,7 @@ async function run() {
             head: branch,
             base: baseBranch,
             body: `# Release changelog\n`
-            + `${releaseChangeLog}`,
+                + `${releaseChangeLog}`,
         });
     }
     core.setOutput('changelog', releaseChangeLog);
