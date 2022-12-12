@@ -43,6 +43,7 @@ async function run() {
     } else {
         let gitLog;
         // Fetch base and head branches with history and git message log diff
+        // TODO: Maybe we could use github API in this part as well
         if (compareMethod === 'branch') {
             await exec(`git fetch origin ${baseBranch} ${branch}`);
             ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
