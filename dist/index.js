@@ -30762,6 +30762,8 @@ const { promisify } = __nccwpck_require__(1669);
 const { prepareChangeLog } = __nccwpck_require__(4921);
 const { createOrUpdatePullRequest } = __nccwpck_require__(7298);
 
+const CHANGELOG_FILE_DESTINATION = 'changelog.txt';
+
 const exec = promisify(childProcess.exec);
 
 async function run() {
@@ -30799,6 +30801,7 @@ async function run() {
     } else {
         let gitLog;
         // Fetch base and head branches with history and git message log diff
+        // TODO: Maybe we could use github API in this part as well
         if (compareMethod === 'branch') {
             await exec(`git fetch origin ${baseBranch} ${branch}`);
             ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
@@ -30832,6 +30835,11 @@ async function run() {
         });
     }
     core.setOutput('changelog', releaseChangeLog);
+    // Write file to disk, because sometimes it can be easier to read it from file-system,
+    // rather than interpolate it in the script, which can cause syntax error.
+    // NOTE: This will work only if this action and consumer are executed within one job.
+    //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
+    await fs.writeFile(CHANGELOG_FILE_DESTINATION, releaseChangeLog, 'utf-8');
 }
 
 run();

@@ -6,6 +6,8 @@ const { promisify } = require('util');
 const { prepareChangeLog } = require('./change_log');
 const { createOrUpdatePullRequest } = require('./pr_helper');
 
+const CHANGELOG_FILE_DESTINATION = 'changelog.txt';
+
 const exec = promisify(childProcess.exec);
 
 async function run() {
@@ -77,6 +79,11 @@ async function run() {
         });
     }
     core.setOutput('changelog', releaseChangeLog);
+    // Write file to disk, because sometimes it can be easier to read it from file-system,
+    // rather than interpolate it in the script, which can cause syntax error.
+    // NOTE: This will work only if this action and consumer are executed within one job.
+    //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
+    await fs.writeFile(CHANGELOG_FILE_DESTINATION, releaseChangeLog, 'utf-8');
 }
 
 run();
