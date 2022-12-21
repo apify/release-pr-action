@@ -78,12 +78,13 @@ async function run() {
                 + `${releaseChangeLog}`,
         });
     }
-    core.setOutput('changelog', releaseChangeLog);
     // Write file to disk, because sometimes it can be easier to read it from file-system,
     // rather than interpolate it in the script, which can cause syntax error.
     // NOTE: This will work only if this action and consumer are executed within one job.
     //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
     await fs.writeFile(changelogFileDestination, releaseChangeLog, 'utf-8');
+    core.setOutput('changelog', releaseChangeLog);
+    core.setOutput('changelogFileDestination', changelogFileDestination);
 }
 
 run();
