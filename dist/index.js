@@ -30771,6 +30771,8 @@ async function run() {
     // inputs are always strings hence default is 'true' and not true
     const createReleasePullRequest = core.getInput('create-pull-request') || 'true';
     const compareMethod = core.getInput('compare-method') || 'branch';
+    const changelogFileDestination = core.getInput('changelog-file-destination') || 'changelog.txt';
+
     const { ref } = github.context;
     const version = ref.split('/').pop();
     const branch = ref.split('heads/').pop();
@@ -30799,6 +30801,7 @@ async function run() {
     } else {
         let gitLog;
         // Fetch base and head branches with history and git message log diff
+        // TODO: Maybe we could use github API in this part as well
         if (compareMethod === 'branch') {
             await exec(`git fetch origin ${baseBranch} ${branch}`);
             ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
@@ -30831,7 +30834,13 @@ async function run() {
                 + `${releaseChangeLog}`,
         });
     }
+    // Write file to disk, because sometimes it can be easier to read it from file-system,
+    // rather than interpolate it in the script, which can cause syntax error.
+    // NOTE: This will work only if this action and consumer are executed within one job.
+    //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
+    await fs.writeFile(changelogFileDestination, releaseChangeLog, 'utf-8');
     core.setOutput('changelog', releaseChangeLog);
+    core.setOutput('changelogFileDestination', changelogFileDestination);
 }
 
 run();

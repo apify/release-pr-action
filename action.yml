@@ -22,6 +22,8 @@ inputs:
 outputs:
   changelog:
     description: 'Changelog content'
+  changelogFileDestination:
+    description: 'Path to changelog file stored in file-system'
 runs:
   using: 'node16'
   main: 'dist/index.js'
