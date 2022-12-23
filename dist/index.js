@@ -30792,11 +30792,11 @@ async function run() {
         const prNumber = JSON.parse(eventFileContent).pull_request.number;
 
         if (!prNumber) throw new Error('Could not obtain pull request\'s number. Was the workflow trigger "pull_request"?');
-        releaseChangeLog = await repoOctokit.rest.pulls.get({
+        releaseChangeLog = (await repoOctokit.rest.pulls.get({
             owner: github.context.repo.owner,
             repo: github.context.repo.repo,
             pull_number: prNumber,
-        }).data.body;
+        })).data.body;
         if (!releaseChangeLog) throw new Error('Could not get changelog from PR description');
     } else {
         let gitLog;
