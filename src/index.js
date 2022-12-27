@@ -3,7 +3,7 @@ const github = require('@actions/github');
 const childProcess = require('child_process');
 const fs = require('fs/promises');
 const { promisify } = require('util');
-const { prepareChangeLog } = require('./change_log');
+const { prepareChangeLog, PR_BODY_NOTE, PR_BODY_NOTE_V2 } = require('./change_log');
 const { createOrUpdatePullRequest } = require('./pr_helper');
 
 const exec = promisify(childProcess.exec);
@@ -64,7 +64,12 @@ async function run() {
         gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     }
 
-    const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
+    const { releaseChangeLog, releaseChangeLogV2 } = await prepareChangeLog(gitMessages, scopes);
+    let prBody = `${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
+    if (releaseChangeLogV2) {
+        prBody += `# Release changelog\n${releaseChangeLogV2}\n`;
+    }
+    prBody += `# Release changelog\n${releaseChangeLog}\n`;
 
     if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');
@@ -74,8 +79,7 @@ async function run() {
             title: `Release ${version}`,
             head: branch,
             base: baseBranch,
-            body: `# Release changelog\n`
-                + `${releaseChangeLog}`,
+            body: prBody,
         });
     }
     // Write file to disk, because sometimes it can be easier to read it from file-system,

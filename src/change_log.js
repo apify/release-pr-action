@@ -1,9 +1,17 @@
 const core = require('@actions/core');
 const commitParser = require('conventional-commits-parser');
+const { OPEN_AI_IMPROVE_CHANGELOG_REQUEST, openai } = require('./open_ai');
 
 // Convention commit cannot parse multiple scopes see https://github.com/conventional-changelog/conventional-changelog/issues/232
 // We need to provide better pattern to parse header.
 const HEADER_PATTERN = /^(\w*)(?:\(([\w\$\.\-\*\, ]*)\))?\: (.*)$/; // eslint-disable-line no-useless-escape
+
+const PR_BODY_NOTE = 'You can edit changelog as you wish. '
+    + 'The first Release changelog section will be published in the slack message after successful release.';
+
+const PR_BODY_NOTE_V2 = 'There are two changelogs: The first one is generated from PR titles. '
+    + 'The second one is generated using gpt-3 from the original one. '
+    + `If you like the second one more, you need to delete the first one to propagate it into slack. ${PR_BODY_NOTE}`;
 
 /*
  * Commit message flags
@@ -19,32 +27,48 @@ const GIT_MESSAGE_FLAGS = {
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
 
-function changeLogForSlack(changelogStructure, scopes) {
-    const whitelistedScopes = Object.keys(scopes);
-    const scopesText = whitelistedScopes
-        // filter out empty scopes
+async function changeLogForSlack(changelogStructure, scopes) {
+    const whitelistedScopes = Object.keys(scopes)
         .filter((scope) => (changelogStructure.user[scope].length
             || changelogStructure.admin[scope].length
-            || changelogStructure.internal[scope].length))
-        .map((scope) => {
-            let text = `**${scope}**\n\n`;
-            if (changelogStructure.user[scope].length) {
-                text += `:rocket: _User-facing_\n${changelogStructure.user[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
-            }
+            || changelogStructure.internal[scope].length));
+    let isOpenaiWorks = true;
+    const changeLogText = [];
+    const changeLogV2Text = [];
+    for (const scope of whitelistedScopes) {
+        let scopeText = `**${scope}**\n\n`;
+        let scopeTextV2 = `**${scope}**\n\n`;
 
-            if (changelogStructure.admin[scope].length) {
-                text += `:nerd_face: _Admin_\n${changelogStructure.admin[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
-            }
+        for (const changeType of ['user', 'admin', 'internal']) {
+            // eslint-disable-next-line no-continue
+            if (!changelogStructure[changeType][scope].length) continue;
+            let changeTypeTitle;
+            if (changeType === 'user') changeTypeTitle = ':rocket: _User-facing_';
+            else if (changeType === 'admin') changeTypeTitle = ':nerd_face: _Admin_';
+            else if (changeType === 'internal') changeTypeTitle = ':house: _Internal_';
 
-            if (changelogStructure.internal[scope].length) {
-                text += `:house: _Internal_\n${changelogStructure.internal[scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+            scopeText += `${changeTypeTitle}\n${changelogStructure[changeType][scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
+
+            // eslint-disable-next-line no-continue
+            if (!isOpenaiWorks) continue;
+            try {
+                const improvedText = await improveChangeLog(changelogStructure[changeType][scope]);
+                scopeTextV2 += `${changeTypeTitle}\n${improvedText.trim()}\n\n`;
+            } catch (err) {
+                isOpenaiWorks = false;
+                console.error(err);
             }
-            return text;
-        });
-    return scopesText.join('\n');
+        }
+        changeLogText.push(scopeText);
+        changeLogV2Text.push(scopeTextV2);
+    }
+    return {
+        releaseChangelog: changeLogText.join('\n'),
+        releaseChangelogV2: isOpenaiWorks ? changeLogV2Text.join('\n') : null,
+    };
 }
 
-function prepareChangeLog(gitMessages, scopes) {
+async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
     const whitelistedScopes = Object.keys(scopes);
     const changelogStructure = {
@@ -154,12 +178,28 @@ function prepareChangeLog(gitMessages, scopes) {
     //     }
     // });
 
-    const releaseChangelog = changeLogForSlack(changelogStructure, scopes);
+    const { releaseChangelog, releaseChangelogV2 } = await changeLogForSlack(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
-    return releaseChangelog;
+    return { releaseChangelog, releaseChangelogV2 };
+}
+
+async function improveChangeLog(changeList) {
+    if (!process.env.OPEN_AI_TOKEN) throw new Error('Cannot improve changelog, missing OPEN_AI_TOKEN env variable.');
+    const completion = await openai.createCompletion({
+        model: 'text-davinci-003',
+        prompt: `${OPEN_AI_IMPROVE_CHANGELOG_REQUEST}\n${changeList.map((line) => `* \`${line}\``).join('\n')}`,
+        max_tokens: 512,
+        temperature: 0.5,
+    });
+
+    if (!completion.data.choices[0]) throw new Error('Cannot generate improve changelog.');
+
+    return completion.data.choices[0].text;
 }
 
 module.exports = {
     prepareChangeLog,
+    PR_BODY_NOTE,
+    PR_BODY_NOTE_V2,
 };

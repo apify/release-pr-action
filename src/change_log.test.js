@@ -1,6 +1,6 @@
 const { prepareChangeLog } = require('./change_log');
 
-test('log correctly prepared', () => {
+test('log correctly prepared', async () => {
     const scopes = { Worker: ['worker'] };
     const gitMessages = [
         'feat: some admin change [admin]',
@@ -10,8 +10,8 @@ test('log correctly prepared', () => {
         'feat(worker): Update packages [internal]',
         'feat: Change sign-up text (#46)',
     ];
-    const result = prepareChangeLog(gitMessages, scopes);
-    expect(result).toEqual(`**Worker**
+    const { releaseChangelog } = await prepareChangeLog(gitMessages, scopes);
+    expect(releaseChangelog).toEqual(`**Worker**
 
 :rocket: _User-facing_
 * just new feature with scope
@@ -27,7 +27,7 @@ test('log correctly prepared', () => {
 `);
 });
 
-test('log correctly prepared for monorepo', () => {
+test('log correctly prepared for monorepo', async () => {
     const scopes = { Console: ['app', 'console'], Api: ['api'], Empty: ['empty'] };
     const gitMessages = [
         'feat(app): some admin change [admin]',
@@ -41,8 +41,8 @@ test('log correctly prepared for monorepo', () => {
         'feat(api): New cool feature in API 💥 (#46)',
         'feat(intl): Change sign-up text (#46)',
     ];
-    const result = prepareChangeLog(gitMessages, scopes);
-    expect(result).toEqual(`**Console**
+    const { releaseChangelog } = await prepareChangeLog(gitMessages, scopes);
+    expect(releaseChangelog).toEqual(`**Console**
 
 :rocket: _User-facing_
 * feature with console scope
