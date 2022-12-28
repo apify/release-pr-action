@@ -65,7 +65,7 @@ async function run() {
     }
 
     const { releaseChangeLog, releaseChangeLogV2 } = await prepareChangeLog(gitMessages, scopes);
-    let prBody = `${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
+    let prBody = `> ${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
     if (releaseChangeLogV2) {
         prBody += `# Release changelog\n${releaseChangeLogV2}\n`;
     }

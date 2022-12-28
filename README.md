@@ -26,6 +26,11 @@ This action is used to create release pull request with:
 | ----------- | ------------------ | ------------------- |
 | `changelog` | Changelog content  | `some cool feature` |
 
+## Experimental feature
+
+An experimental feature will rewrite the final changelog using GPT-3 davinci language model.
+If you want to try, you need to pass the `OPEN_AI_TOKEN` environment variable with your API token from [openai.com](https://beta.openai.com/).
+
 ## Example usage
 
 ```yaml

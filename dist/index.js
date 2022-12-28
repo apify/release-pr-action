@@ -38460,7 +38460,7 @@ module.exports = {
 
 const { Configuration, OpenAIApi } = __nccwpck_require__(9211);
 
-const OPENAI_IMPROVE_CHANGELOG_REQUEST = `You are an expert programmer, and you are trying to rewrite release changes into user-friendly text.
+const OPEN_AI_IMPROVE_CHANGELOG_REQUEST = `You are an expert programmer, and you are trying to rewrite release changes into user-friendly text.
 For each line bellow write one meaningful sentence, starting each bullet point with a \`* \`, and the sentence ends with \`.\`.`;
 
 const openaiConfiguration = new Configuration({
@@ -38469,7 +38469,7 @@ const openaiConfiguration = new Configuration({
 
 module.exports = {
     openai: new OpenAIApi(openaiConfiguration),
-    OPEN_AI_IMPROVE_CHANGELOG_REQUEST: OPENAI_IMPROVE_CHANGELOG_REQUEST,
+    OPEN_AI_IMPROVE_CHANGELOG_REQUEST,
 };
 
 
@@ -38815,7 +38815,7 @@ async function run() {
     }
 
     const { releaseChangeLog, releaseChangeLogV2 } = await prepareChangeLog(gitMessages, scopes);
-    let prBody = `${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
+    let prBody = `> ${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
     if (releaseChangeLogV2) {
         prBody += `# Release changelog\n${releaseChangeLogV2}\n`;
     }
