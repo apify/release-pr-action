@@ -66,10 +66,10 @@ async function run() {
 
     const { releaseChangeLog, releaseChangeLogV2 } = await prepareChangeLog(gitMessages, scopes);
     let prBody = `> ${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
+    prBody += `# Release changelog\n${releaseChangeLog}\n`;
     if (releaseChangeLogV2) {
         prBody += `# Release changelog\n${releaseChangeLogV2}\n`;
     }
-    prBody += `# Release changelog\n${releaseChangeLog}\n`;
 
     if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');

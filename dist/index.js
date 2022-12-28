@@ -38461,7 +38461,7 @@ module.exports = {
 const { Configuration, OpenAIApi } = __nccwpck_require__(9211);
 
 const OPEN_AI_IMPROVE_CHANGELOG_REQUEST = `You are an expert programmer, and you are trying to rewrite release changes into user-friendly text.
-For each line bellow write one meaningful sentence, starting each bullet point with a \`* \`, and the sentence ends with \`.\`.`;
+For each line bellow write one meaningful past infinitive sentence, starting each bullet point with a \`* \`, and the sentence ends with \`.\`.`;
 
 const openaiConfiguration = new Configuration({
     apiKey: process.env.OPEN_AI_TOKEN,
@@ -38816,10 +38816,10 @@ async function run() {
 
     const { releaseChangeLog, releaseChangeLogV2 } = await prepareChangeLog(gitMessages, scopes);
     let prBody = `> ${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
+    prBody += `# Release changelog\n${releaseChangeLog}\n`;
     if (releaseChangeLogV2) {
         prBody += `# Release changelog\n${releaseChangeLogV2}\n`;
     }
-    prBody += `# Release changelog\n${releaseChangeLog}\n`;
 
     if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');
