@@ -9,13 +9,13 @@ const { prepareChangeLog } = require('./change_log');
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
 const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
-    + 'It\'s content will be then used to make github release and slack message';
+    + ' Its content will be used to make github release and slack message';
 const CHANGELOG_ANNOTATION = '<!-- CHANGELOG -->';
 const CHANGELOG_REGEX = new RegExp(`\r?\n${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}\r?\n`, 'mg');
 
 async function createOrUpdatePullRequest(octokit, options) {
     const { owner, repo, head, base, changelog, ...theRestOptions } = options;
-    const body = `${PULL_REQUEST_BODY_NOTE}\n${CHANGELOG_ANNOTATION}\n${changelog}\n${CHANGELOG_ANNOTATION}`;
+    const body = `${PULL_REQUEST_BODY_NOTE}\n${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}`;
     try {
         core.info(`Creating pull request ${base} <- ${head}`);
         await octokit.rest.pulls.create({
@@ -72,6 +72,7 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
     core.info(`Fetching changelog from pull request's description. Pull request number: ${pullNumber}`);
     const { body } = (await octokit.rest.pulls.get(pullRequestOptions)).data;
 
+    core.debug(`Pull request body ${body}`);
     // Parse changelog from pull request body
     const changelog = body.match(CHANGELOG_REGEX)[0].replaceAll(CHANGELOG_ANNOTATION, '').trim();
 
