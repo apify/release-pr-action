@@ -27,7 +27,6 @@ inputs:
     description: 'Create new github release'
   slack-channel:
     required: false
-    default: false
     description: 'Slack channel to which the changelog should be send'
   base-branch:
     required: false
