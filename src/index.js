@@ -63,6 +63,7 @@ async function run() {
         ...github.context,
         headRef: process.env.GITHUB_HEAD_REF,
         refName: process.env.GITHUB_REF_NAME,
+        repository: process.env.GITHUB_REPOSITORY,
         // github.context.repo is getter
         repo: github.context.repo,
     };
@@ -125,6 +126,8 @@ async function run() {
             channel: slackChannel,
             text: 'Release notes', // This is just fallback for slack api
             changelog: githubChangelog,
+            repository: context.repository,
+            releaseName,
         });
     }
 

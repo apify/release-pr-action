@@ -208,9 +208,10 @@ async function createGithubReleaseFn(octokit, options) {
 }
 
 async function sendReleaseNotesToSlack(slackToken, options) {
-    const { channel, text, changelog } = options;
+    const { channel, text, changelog, repository, releaseName } = options;
+    const message = `_Repository_: ${repository} _Revision_: ${releaseName}\n${slackifyMarkdown(changelog)}`;
     const payload = {
-        text: slackifyMarkdown(changelog),
+        text: message,
     };
     const slack = new WebClient(slackToken);
     await slack.chat.postMessage({
