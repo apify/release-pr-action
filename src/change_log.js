@@ -32,7 +32,7 @@ async function changeLogForSlack(changelogStructure, scopes) {
         .filter((scope) => (changelogStructure.user[scope].length
             || changelogStructure.admin[scope].length
             || changelogStructure.internal[scope].length));
-    let isOpenaiWorks = true;
+    let isOpenaiWorks = !!process.env.OPEN_AI_TOKEN;
     const changeLogText = [];
     const changeLogV2Text = [];
     for (const scope of whitelistedScopes) {
@@ -56,7 +56,7 @@ async function changeLogForSlack(changelogStructure, scopes) {
                 scopeTextV2 += `${changeTypeTitle}\n${improvedText.trim()}\n\n`;
             } catch (err) {
                 isOpenaiWorks = false;
-                console.error(err);
+                core.error(err);
             }
         }
         changeLogText.push(scopeText);
@@ -191,6 +191,8 @@ async function improveChangeLog(changeList) {
         prompt: `${OPEN_AI_IMPROVE_CHANGELOG_REQUEST}\n${changeList.map((line) => `* \`${line}\``).join('\n')}`,
         max_tokens: 512,
         temperature: 0.5,
+    }, {
+        timeout: 10000,
     });
 
     if (!completion.data.choices[0]) throw new Error('Cannot generate improve changelog.');
