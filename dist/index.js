@@ -54434,7 +54434,7 @@ const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d
 const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
     + ' Its content will be used to make github release and slack message';
 const CHANGELOG_ANNOTATION = '<!-- CHANGELOG -->';
-const CHANGELOG_REGEX = new RegExp(`\r?\n${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}\r?\n`, 'mg');
+const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}`, 'mg');
 
 async function createOrUpdatePullRequest(octokit, options) {
     const { owner, repo, head, base, changelog, ...theRestOptions } = options;
