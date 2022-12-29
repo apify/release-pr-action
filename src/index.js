@@ -36,7 +36,6 @@ async function createChangelog(
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'git_diff':
-            core.debug(`createChangelog headBranch: ${headBranch}`);
             githubChangelog = await getChangelogFromGitDiff(baseBranch, headBranch, scopes);
             break;
         default:
@@ -70,7 +69,7 @@ async function run() {
         releaseName,
         headBranch,
         alreadyExists,
-    } = getReleaseNameInfo(
+    } = await getReleaseNameInfo(
         octokit,
         context,
         releaseNamePrefix,
@@ -108,7 +107,6 @@ async function run() {
     }
 
     if (createGithubRelease) {
-        core.info(`Creating github release ${releaseName}`);
         const releaseAlreadyExists = await createGithubReleaseFn(octokit, {
             ...context.repo,
             tag_name: releaseName,

@@ -82,7 +82,6 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
  * NOTE: This function requires, that repository is cloned to local filesystem
  */
 async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
-    core.debug(`createChangelog headBranch: ${headBranch}`);
     await exec(`git fetch origin ${baseBranch} ${headBranch}`);
     const gitLog = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
