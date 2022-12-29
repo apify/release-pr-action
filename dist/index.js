@@ -54964,9 +54964,9 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const githubChangelog = createChangelog(changelogMethod, octokit, scopes, context);
+    const githubChangelog = await createChangelog(changelogMethod, octokit, scopes, context);
 
-    if (createReleasePullRequest === 'true') {
+    if (createReleasePullRequest) {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
             ...context.repo,
