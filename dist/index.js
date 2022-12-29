@@ -54552,6 +54552,7 @@ async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNa
     let cleanVersion;
 
     const { eventName, headRef, refName } = context;
+    core.debug(`Context: ${JSON.stringify(context)}`);
 
     if (releaseNameMethod === 'tag') {
         const release = await getReleaseNameFromReleases(octokit, context, releaseNamePrefix);
@@ -54576,6 +54577,7 @@ async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNa
     }
 
     if (!releaseName) throw new Error('Could not determine release name!');
+    if (!headBranch) throw new Error('Could not determine the head branch!');
 
     if (releaseName.slice(0, releaseNamePrefix.length) === releaseNamePrefix) {
         cleanVersion = releaseName.slice(releaseNamePrefix.length);
