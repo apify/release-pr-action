@@ -104,7 +104,7 @@ async function run() {
             title: `Release ${releaseName}`,
             head: headBranch,
             base: baseBranch,
-            body: githubChangelog,
+            changelog: githubChangelog,
         });
     }
 

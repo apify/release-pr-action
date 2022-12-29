@@ -54495,7 +54495,7 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
     core.info(`Fetching changelog from pull request's description. Pull request number: ${pullNumber}`);
     const { body } = (await octokit.rest.pulls.get(pullRequestOptions)).data;
 
-    // Parse the changelog from body
+    // Parse changelog from pull request body
     const changelog = body.match(CHANGELOG_REGEX)[0].replaceAll(CHANGELOG_ANNOTATION, '').trim();
 
     if (!changelog) throw new Error('Could not get pull request body!');
@@ -55006,7 +55006,7 @@ async function run() {
             title: `Release ${releaseName}`,
             head: headBranch,
             base: baseBranch,
-            body: githubChangelog,
+            changelog: githubChangelog,
         });
     }
 
