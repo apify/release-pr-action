@@ -174,6 +174,8 @@ async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNa
             headBranch,
         };
     }
+
+    core.debug(`Release name info ${JSON.stringify({ releaseName, headBranch, alreadyExists })}`);
     return { releaseName, headBranch, alreadyExists };
 }
 
