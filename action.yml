@@ -4,7 +4,7 @@ inputs:
   github-token:
     required: true
     description: 'Github token with repository scope permissions'
-  slackToken:
+  slack-token:
     required: false
     description: 'Slack token (needed if slack-channel input is set)'
   changelog-scopes:
@@ -41,10 +41,6 @@ inputs:
     required: false
     default: 'github_changelog.md'
     description: 'Where to store github changelog on filesystem'
-  slack-changelog-file-destination:
-    required: false
-    default: 'slack_changelog.md'
-    description: 'Where to store slack changelog on filesystem'
 outputs:
   github-changelog:
     description: 'Changelog content in GihHub markdown'
