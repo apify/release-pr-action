@@ -6,7 +6,7 @@ const {
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
     getChangelogFromGitDiff,
-    getContext,
+    getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 } = require('./utils');
@@ -51,13 +51,17 @@ async function run() {
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
 
-    const { context } = github;
+    const context = {
+        ...github.context,
+        headRef: process.env.GITHUB_HEAD_REF,
+        refName: process.env.GITHUB_REF_NAME,
+    };
 
     const {
         releaseName,
         headBranch,
         alreadyExists,
-    } = getContext(
+    } = getReleaseNameInfo(
         context,
         releaseNamePrefix,
         releaseNameMethod,

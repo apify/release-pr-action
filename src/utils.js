@@ -121,18 +121,14 @@ async function getReleaseNameFromReleases(octokit, context, releaseNamePrefix) {
     }
 }
 
-async function getContext(octokit, context, releaseNamePrefix, releaseNameMethod) {
+async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNameMethod) {
     let headBranch;
     let releaseName;
     let bumpMinor = false;
     let alreadyExists = false;
     let cleanVersion;
 
-    const {
-        GITHUB_EVENT_NAME: eventName,
-        GITHUB_REF_NAME: refName,
-        GITHUB_HEAD_REF: headRef,
-    } = process.env;
+    const { eventName, headRef, refName } = context;
 
     if (releaseNameMethod === 'tag') {
         const release = await getReleaseNameFromReleases(octokit, context, releaseNamePrefix);
@@ -212,7 +208,7 @@ module.exports = {
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
     getChangelogFromGitDiff,
-    getContext,
+    getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 };
