@@ -1,13 +1,9 @@
 const core = require('@actions/core');
 const { WebClient } = require('@slack/web-api');
-const childProcess = require('child_process');
 const slackifyMarkdown = require('slackify-markdown');
-const { promisify } = require('util');
 const fs = require('fs/promises');
 const { prepareChangeLog } = require('./change_log');
 // Not very popular package, but did not find a better one.
-
-const exec = promisify(childProcess.exec);
 
 // eslint-disable-next-line max-len
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -81,11 +77,28 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
 /**
  * NOTE: This function requires, that repository is cloned to local filesystem
  */
-async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
-    await exec(`git fetch origin ${baseBranch} ${headBranch}`);
-    const { stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
-    const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
-    return prepareChangeLog(gitMessages, scopes);
+// async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
+//     await exec(`git fetch origin ${baseBranch} ${headBranch}`);
+//     const { stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
+//     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
+//     return prepareChangeLog(gitMessages, scopes);
+// }
+
+async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes) {
+    const commitMessages = [];
+    const compareResponse = await octokit.paginate('/repos/{owner}/{repo}/compare/{basehead}', {
+        ...context.repo,
+        basehead: `${baseBranch}...${headBranch}`,
+    });
+    for (const page of compareResponse) {
+        for (const commit of page.commits) {
+            commitMessages.push(commit.commit.message);
+        }
+    }
+    if (!commitMessages || commitMessages.length === 0) {
+        throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
+    }
+    return prepareChangeLog(commitMessages, scopes);
 }
 
 /**
@@ -211,7 +224,7 @@ module.exports = {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
-    getChangelogFromGitDiff,
+    getChangelogFromCompareBranches,
     getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,

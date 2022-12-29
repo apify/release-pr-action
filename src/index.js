@@ -5,7 +5,7 @@ const {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
-    getChangelogFromGitDiff,
+    getChangelogFromCompareBranches,
     getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
@@ -36,7 +36,7 @@ async function createChangelog(
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'git_diff':
-            githubChangelog = await getChangelogFromGitDiff(baseBranch, headBranch, scopes);
+            githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
             break;
         default:
             core.error(`Unrecognized "changelog-method" input: ${method}`);
