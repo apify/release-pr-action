@@ -54505,6 +54505,7 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
  * NOTE: This function requires, that repository is cloned to local filesystem
  */
 async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
+    core.debug(`createChangelog headBranch: ${headBranch}`);
     await exec(`git fetch origin ${baseBranch} ${headBranch}`);
     const gitLog = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
@@ -54926,6 +54927,7 @@ async function createChangelog(
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'git_diff':
+            core.debug(`createChangelog headBranch: ${headBranch}`);
             githubChangelog = await getChangelogFromGitDiff(baseBranch, headBranch, scopes);
             break;
         default:
@@ -54975,6 +54977,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
+    core.debug(`createChangelog headBranch: ${headBranch}`);
     const githubChangelog = await createChangelog(
         changelogMethod,
         octokit,

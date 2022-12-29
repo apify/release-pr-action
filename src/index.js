@@ -36,6 +36,7 @@ async function createChangelog(
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'git_diff':
+            core.debug(`createChangelog headBranch: ${headBranch}`);
             githubChangelog = await getChangelogFromGitDiff(baseBranch, headBranch, scopes);
             break;
         default:
@@ -85,6 +86,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
+    core.debug(`createChangelog headBranch: ${headBranch}`);
     const githubChangelog = await createChangelog(
         changelogMethod,
         octokit,
