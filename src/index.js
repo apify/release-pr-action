@@ -18,7 +18,14 @@ function alreadyExistsExit(alreadyExists, releaseName) {
     }
 }
 
-async function createChangelog(method, octokit, scopes, context) {
+async function createChangelog(
+    method,
+    octokit,
+    scopes,
+    context,
+    baseBranch,
+    headBranch,
+) {
     let githubChangelog;
 
     switch (method) {
@@ -29,7 +36,7 @@ async function createChangelog(method, octokit, scopes, context) {
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'git_diff':
-            githubChangelog = await getChangelogFromGitDiff(octokit, scopes);
+            githubChangelog = await getChangelogFromGitDiff(baseBranch, headBranch, scopes);
             break;
         default:
             core.error(`Unrecognized "changelog-method" input: ${method}`);
@@ -78,7 +85,14 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const githubChangelog = await createChangelog(changelogMethod, octokit, scopes, context);
+    const githubChangelog = await createChangelog(
+        changelogMethod,
+        octokit,
+        scopes,
+        context,
+        baseBranch,
+        headBranch,
+    );
 
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
