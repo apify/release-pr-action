@@ -54918,7 +54918,7 @@ async function createChangelog(method, octokit, scopes, context) {
             githubChangelog = await getChangelogFromGitDiff(octokit, scopes);
             break;
         default:
-            core.error(`Unrecognized "method" input: ${method}`);
+            core.error(`Unrecognized "changelog-method" input: ${method}`);
             break;
     }
     return githubChangelog;
@@ -54937,6 +54937,7 @@ async function run() {
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
 
+    const octokit = github.getOctokit(githubToken);
     const context = {
         ...github.context,
         headRef: process.env.GITHUB_HEAD_REF,
@@ -54948,14 +54949,13 @@ async function run() {
         headBranch,
         alreadyExists,
     } = getReleaseNameInfo(
+        octokit,
         context,
         releaseNamePrefix,
         releaseNameMethod,
     );
 
     alreadyExistsExit(alreadyExists, releaseName);
-
-    const octokit = github.getOctokit(githubToken);
 
     let scopes;
     try {
@@ -54964,7 +54964,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const githubChangelog = createChangelog(changelogMethod, octokit, scopes);
+    const githubChangelog = createChangelog(changelogMethod, octokit, scopes, context);
 
     if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');
