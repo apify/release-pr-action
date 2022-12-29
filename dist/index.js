@@ -54544,18 +54544,14 @@ async function getReleaseNameFromReleases(octokit, context, releaseNamePrefix) {
     }
 }
 
-async function getContext(octokit, context, releaseNamePrefix, releaseNameMethod) {
+async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNameMethod) {
     let headBranch;
     let releaseName;
     let bumpMinor = false;
     let alreadyExists = false;
     let cleanVersion;
 
-    const {
-        GITHUB_EVENT_NAME: eventName,
-        GITHUB_REF_NAME: refName,
-        GITHUB_HEAD_REF: headRef,
-    } = process.env;
+    const { eventName, headRef, refName } = context;
 
     if (releaseNameMethod === 'tag') {
         const release = await getReleaseNameFromReleases(octokit, context, releaseNamePrefix);
@@ -54635,7 +54631,7 @@ module.exports = {
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
     getChangelogFromGitDiff,
-    getContext,
+    getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 };
@@ -54896,7 +54892,7 @@ const {
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
     getChangelogFromGitDiff,
-    getContext,
+    getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 } = __nccwpck_require__(1608);
@@ -54941,13 +54937,17 @@ async function run() {
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
 
-    const { context } = github;
+    const context = {
+        ...github.context,
+        headRef: process.env.GITHUB_HEAD_REF,
+        refName: process.env.GITHUB_REF_NAME,
+    };
 
     const {
         releaseName,
         headBranch,
         alreadyExists,
-    } = getContext(
+    } = getReleaseNameInfo(
         context,
         releaseNamePrefix,
         releaseNameMethod,
