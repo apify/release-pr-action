@@ -63,6 +63,8 @@ async function run() {
         ...github.context,
         headRef: process.env.GITHUB_HEAD_REF,
         refName: process.env.GITHUB_REF_NAME,
+        // github.context.repo is getter
+        repo: github.context.repo,
     };
 
     const {
