@@ -54506,7 +54506,7 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
  */
 async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
     await exec(`git fetch origin ${baseBranch} ${headBranch}`);
-    const gitLog = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
+    const { stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
     return prepareChangeLog(gitMessages, scopes);
 }
