@@ -88,7 +88,6 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    core.debug(`createChangelog headBranch: ${headBranch}`);
     const githubChangelog = await createChangelog(
         changelogMethod,
         octokit,

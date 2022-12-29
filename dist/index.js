@@ -54423,23 +54423,35 @@ module.exports = {
 
 const core = __nccwpck_require__(2186);
 const { WebClient } = __nccwpck_require__(431);
+// Not very popular package, but did not find a better one.
 const slackifyMarkdown = __nccwpck_require__(9418);
 const fs = __nccwpck_require__(9225);
 const { prepareChangeLog } = __nccwpck_require__(4921);
-// Not very popular package, but did not find a better one.
 
 // eslint-disable-next-line max-len
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
-async function createOrUpdatePullRequest(octokit, pullRequest) {
-    const { owner, repo, head, base, ...theRestOptions } = pullRequest;
+const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
+    + 'It\'s content will be then used to make github release and slack message';
+const CHANGELOG_ANNOTATION = '<!-- CHANGELOG -->';
+const CHANGELOG_REGEX = new RegExp(`\r?\n${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}\r?\n`, 'mg');
+
+async function createOrUpdatePullRequest(octokit, options) {
+    const { owner, repo, head, base, changelog, ...theRestOptions } = options;
+    const body = `${PULL_REQUEST_BODY_NOTE}\n${CHANGELOG_ANNOTATION}\n${changelog}\n${CHANGELOG_ANNOTATION}`;
     try {
         core.info(`Creating pull request ${base} <- ${head}`);
-        const { data: pull } = await octokit.rest.pulls.create(pullRequest);
-        return pull;
+        await octokit.rest.pulls.create({
+            owner,
+            repo,
+            head,
+            base,
+            body,
+            ...theRestOptions,
+        });
     } catch (err) {
         if (err.message && err.message.includes(`A pull request already exists`)) {
-            core.info(`The pull request already exists for ${pullRequest.head}`);
+            core.info(`The pull request already exists for ${options.head}`);
         } else {
             throw err;
         }
@@ -54454,13 +54466,13 @@ async function createOrUpdatePullRequest(octokit, pullRequest) {
         state: 'open',
     });
     core.info(`Updating existing pull request #${pulls[0].number}`);
-    const { data: pull } = await octokit.rest.pulls.update({
+    await octokit.rest.pulls.update({
         owner,
         repo,
         pull_number: pulls[0].number,
+        body,
         ...theRestOptions,
     });
-    return pull;
 }
 
 /**
@@ -54481,8 +54493,12 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
     const pullRequestOptions = await getPullRequestOptions(context);
     const { pull_number: pullNumber } = pullRequestOptions;
     core.info(`Fetching changelog from pull request's description. Pull request number: ${pullNumber}`);
-    const changelog = (await octokit.rest.pulls.get(pullRequestOptions)).data.body;
-    if (!changelog) throw new Error('Pull request body is empty!');
+    const { body } = (await octokit.rest.pulls.get(pullRequestOptions)).data;
+
+    // Parse the changelog from body
+    const changelog = body.match(CHANGELOG_REGEX)[0].replaceAll(CHANGELOG_ANNOTATION, '').trim();
+
+    if (!changelog) throw new Error('Could not get pull request body!');
     return changelog;
 }
 
@@ -54496,16 +54512,6 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     if (!commitMessages) throw new Error('Could not parse commit messages!');
     return prepareChangeLog(commitMessages, scopes);
 }
-
-/**
- * NOTE: This function requires, that repository is cloned to local filesystem
- */
-// async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
-//     await exec(`git fetch origin ${baseBranch} ${headBranch}`);
-//     const { stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${headBranch} ^origin/${baseBranch}`);
-//     const gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
-//     return prepareChangeLog(gitMessages, scopes);
-// }
 
 async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes) {
     const commitMessages = [];
@@ -54632,7 +54638,7 @@ async function createGithubReleaseFn(octokit, options) {
 
 async function sendReleaseNotesToSlack(slackToken, options) {
     const { channel, text, changelog, repository, releaseName } = options;
-    const message = `_Repository_: ${repository} _Revision_: ${releaseName}\n${slackifyMarkdown(changelog)}`;
+    const message = `_Repository_: *${repository}* _Revision_: *${releaseName}*\n${slackifyMarkdown(changelog)}`;
     const payload = {
         text: message,
     };
@@ -54984,7 +54990,6 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    core.debug(`createChangelog headBranch: ${headBranch}`);
     const githubChangelog = await createChangelog(
         changelogMethod,
         octokit,
