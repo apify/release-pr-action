@@ -1,5 +1,4 @@
 const core = require('@actions/core');
-const github = require('@actions/github');
 const { WebClient } = require('@slack/web-api');
 const childProcess = require('child_process');
 const slackifyMarkdown = require('slackify-markdown');
@@ -50,18 +49,17 @@ async function createOrUpdatePullRequest(octokit, pullRequest) {
  * @returns object
  * @private
  */
-async function getPullRequestOptions() {
+async function getPullRequestOptions(context) {
     const eventFileContent = await fs.readFile(process.env.GITHUB_EVENT_PATH);
     const prNumber = JSON.parse(eventFileContent).pull_request.number;
     return {
-        owner: github.context.repo.owner,
-        repo: github.context.repo.repo,
+        ...context.repo,
         pull_number: prNumber,
     };
 }
 
-async function getChangelogFromPullRequestDescription(octokit) {
-    const pullRequestOptions = await getPullRequestOptions();
+async function getChangelogFromPullRequestDescription(octokit, context) {
+    const pullRequestOptions = await getPullRequestOptions(context);
     const { pull_number: pullNumber } = pullRequestOptions;
     core.info(`Fetching changelog from pull request's description. Pull request number: ${pullNumber}`);
     const changelog = (await octokit.rest.pulls.get(pullRequestOptions)).data.body;
@@ -69,8 +67,8 @@ async function getChangelogFromPullRequestDescription(octokit) {
     return changelog;
 }
 
-async function getChangelogFromPullRequestCommits(octokit, scopes) {
-    const pullRequestOptions = await getPullRequestOptions();
+async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
+    const pullRequestOptions = await getPullRequestOptions(context);
     const { pull_number: pullNumber } = pullRequestOptions;
     core.info(`Fetching changelog from pull request's commits. Pull request number: ${pullNumber}`);
     const commits = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/commits', pullRequestOptions);
@@ -96,20 +94,18 @@ async function getChangelogFromGitDiff(baseBranch, headBranch, scopes) {
  * @returns {object}
  * @private
  */
-async function getReleaseNameFromReleases(context, releaseNamePrefix) {
+async function getReleaseNameFromReleases(octokit, context, releaseNamePrefix) {
     let releaseName;
-    const releases = await github.rest.repos.listReleases({
-        owner: context.repo.owner,
-        repo: context.repo.repo,
+    const releases = await octokit.rest.repos.listReleases({
+        ...context.repo,
     });
     if (releases.data.length === 0) {
         releaseName = `${releaseNamePrefix}0.0.0`;
     } else {
         const { name, tag_name: tagName } = releases.data[0];
         core.info(`Discovered last release name: ${name}`);
-        const tag = await github.rest.git.getRef({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
+        const tag = await octokit.rest.git.getRef({
+            ...context.repo,
             ref: `tags/${tagName}`,
         });
         releaseName = name;
@@ -125,17 +121,21 @@ async function getReleaseNameFromReleases(context, releaseNamePrefix) {
     }
 }
 
-async function getContext(context, releaseNamePrefix, releaseNameMethod) {
+async function getContext(octokit, context, releaseNamePrefix, releaseNameMethod) {
     let headBranch;
     let releaseName;
     let bumpMinor = false;
     let alreadyExists = false;
     let cleanVersion;
 
-    const { event_name: eventName, ref_name: refName, head_ref: headRef } = context;
+    const {
+        GITHUB_EVENT_NAME: eventName,
+        GITHUB_REF_NAME: refName,
+        GITHUB_HEAD_REF: headRef,
+    } = process.env;
 
     if (releaseNameMethod === 'tag') {
-        const release = await getReleaseNameFromReleases(context, releaseNamePrefix);
+        const release = await getReleaseNameFromReleases(octokit, context, releaseNamePrefix);
         headBranch = headRef;
         releaseName = release.releaseName;
         alreadyExists = release.alreadyExists;

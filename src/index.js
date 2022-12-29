@@ -18,15 +18,15 @@ function alreadyExistsExit(alreadyExists, releaseName) {
     }
 }
 
-async function createChangelog(method, octokit, scopes) {
+async function createChangelog(method, octokit, scopes, context) {
     let githubChangelog;
 
     switch (method) {
         case 'pull_request_description':
-            githubChangelog = await getChangelogFromPullRequestDescription(octokit);
+            githubChangelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes);
+            githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'git_diff':
             githubChangelog = await getChangelogFromGitDiff(octokit, scopes);
@@ -51,13 +51,14 @@ async function run() {
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
 
-    // This assumes that branch is named release/X.Y.Z (according to git flow)
+    const { context } = github;
+
     const {
         releaseName,
         headBranch,
         alreadyExists,
     } = getContext(
-        github.context,
+        context,
         releaseNamePrefix,
         releaseNameMethod,
     );
@@ -78,8 +79,7 @@ async function run() {
     if (createReleasePullRequest === 'true') {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
+            ...context.repo,
             title: `Release ${releaseName}`,
             head: headBranch,
             base: baseBranch,
@@ -90,8 +90,7 @@ async function run() {
     if (createGithubRelease) {
         core.info(`Creating github release ${releaseName}`);
         const releaseAlreadyExists = await createGithubReleaseFn(octokit, {
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
+            ...context.repo,
             tag_name: releaseName,
             name: releaseName,
             target_commitish: baseBranch,
