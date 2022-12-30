@@ -12,7 +12,7 @@ inputs:
     description: 'Scopes which will be used in changelog (the first scope will be used as default for commit messages without scope)'
   changelog-method:
     required: true
-    description: 'Generate changelog from: pull_request_description|pull_request_commits|git_diff'
+    description: 'Generate changelog from: pull_request_description|pull_request_commits|commits_compare'
   release-name-method:
     required: false
     default: 'branch'
@@ -38,7 +38,7 @@ inputs:
     default: 'v'
   github-changelog-file-destination:
     required: false
-    default: 'github_changelog.md'
+    default: 'changelog.md'
     description: 'Where to store github changelog on filesystem'
 outputs:
   github-changelog:

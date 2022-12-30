@@ -54270,6 +54270,12 @@ const GIT_MESSAGE_FLAGS = {
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
 
+/**
+ * Converts structured changelog (object) to changelog message (string)
+ * @param {*} changelogStructure - changelog object
+ * @param {*} scopes             - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 function structureChangelog(changelogStructure, scopes) {
     const whitelistedScopes = Object.keys(scopes);
     const scopesText = whitelistedScopes
@@ -54295,6 +54301,12 @@ function structureChangelog(changelogStructure, scopes) {
     return scopesText.join('\n');
 }
 
+/**
+ * Parse commit messages and convert them into human readable changelog
+ * @param {*} gitMessages - commit messages
+ * @param {*} scopes      - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
     const whitelistedScopes = Object.keys(scopes);
@@ -54425,17 +54437,21 @@ const core = __nccwpck_require__(2186);
 const { WebClient } = __nccwpck_require__(431);
 // Not very popular package, but did not find a better one.
 const slackifyMarkdown = __nccwpck_require__(9418);
-const fs = __nccwpck_require__(9225);
 const { prepareChangeLog } = __nccwpck_require__(4921);
 
 // eslint-disable-next-line max-len
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
-const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
-    + ' Its content will be used to make github release and slack message';
 const CHANGELOG_ANNOTATION = '<!-- CHANGELOG -->';
+const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
+    + ` Content between ${CHANGELOG_ANNOTATION} comments will be used to make github release and slack message`;
 const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}`, 'mg');
 
+/**
+ * Creates/Updates pull request with description containing changelog
+ * @param {*} octokit - authorized instance of github.rest client
+ * @param {*} options - options
+ */
 async function createOrUpdatePullRequest(octokit, options) {
     const { owner, repo, head, base, changelog, ...theRestOptions } = options;
     const body = `${PULL_REQUEST_BODY_NOTE}\n${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}`;
@@ -54476,24 +54492,18 @@ async function createOrUpdatePullRequest(octokit, options) {
 }
 
 /**
- * This function returns payload for github pull request api calls
- * @returns object
- * @private
+ * Read pull request's description, parses changelog out of it.
+ * @param {*} octokit - authorized instance of github.rest client
+ * @param {*} context - github action context
+ * @returns {string}
  */
-async function getPullRequestOptions(context) {
-    const eventFileContent = await fs.readFile(process.env.GITHUB_EVENT_PATH);
-    const prNumber = JSON.parse(eventFileContent).pull_request.number;
-    return {
-        ...context.repo,
-        pull_number: prNumber,
-    };
-}
-
 async function getChangelogFromPullRequestDescription(octokit, context) {
-    const pullRequestOptions = await getPullRequestOptions(context);
-    const { pull_number: pullNumber } = pullRequestOptions;
+    const pullNumber = context.payload.pull_request.number;
     core.info(`Fetching changelog from pull request's description. Pull request number: ${pullNumber}`);
-    const { body } = (await octokit.rest.pulls.get(pullRequestOptions)).data;
+    const { body } = (await octokit.rest.pulls.get({
+        ...context.repo,
+        pull_number: pullNumber,
+    })).data;
 
     core.debug(`Pull request body ${body}`);
     // Parse changelog from pull request body
@@ -54503,17 +54513,35 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
     return changelog;
 }
 
+/**
+ * Generate changelog from commits on release pull request.
+ * @param {*} octokit - authorized instance of github.rest client
+ * @param {*} scopes  - convectional commits scopes to group changelog items
+ * @param {*} context - github action context
+ * @returns {string}
+ */
 async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
-    const pullRequestOptions = await getPullRequestOptions(context);
-    const { pull_number: pullNumber } = pullRequestOptions;
+    const pullNumber = context.payload.pull_request.number;
     core.info(`Fetching changelog from pull request's commits. Pull request number: ${pullNumber}`);
-    const commits = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/commits', pullRequestOptions);
+    const commits = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/commits', {
+        ...context.repo,
+        pull_number: pullNumber,
+    });
     if (!commits) throw new Error('Pull request has no commits!');
     const commitMessages = commits.map((commit) => commit.commit.message);
     if (!commitMessages) throw new Error('Could not parse commit messages!');
     return prepareChangeLog(commitMessages, scopes);
 }
 
+/**
+ * Generate changelog from branches comparison
+ * @param {*} octokit         - authorized instance of github.rest client
+ * @param {*} context         - github action context
+ * @param {string} baseBranch - base branch/commit to start comparison from
+ * @param {string} headBranch - head branch/commit to start comparison from
+ * @param {*} scopes          - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes) {
     const commitMessages = [];
     const compareResponse = await octokit.paginate('/repos/{owner}/{repo}/compare/{basehead}', {
@@ -54532,12 +54560,14 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
 }
 
 /**
+ * If there is no release branch, try to determine the current release name from latest release
  * @param {object} context           - github action context
  * @param {string} releaseNamePrefix - prefix of semver release (i.e 'v')
  * @returns {object}
  * @private
  */
 async function getReleaseNameFromReleases(octokit, context, releaseNamePrefix) {
+    let alreadyExists = false;
     let releaseName;
     const releases = await octokit.rest.repos.listReleases({
         ...context.repo,
@@ -54558,18 +54588,28 @@ async function getReleaseNameFromReleases(octokit, context, releaseNamePrefix) {
         // If tag of last release already exists on current commit SHA, then do not create new release
         if (tagCommitSha === context.sha) {
             core.info(`Release with tag ${tagName} already exists! Refusing to override!`);
-            return { releaseName, alreadyExists: true };
+            alreadyExists = true;
+            return { releaseName, alreadyExists };
         }
-        return { releaseName, alreadyExists: false };
+        return { releaseName, alreadyExists };
     }
 }
 
+/**
+ * Get next release name to be published alongside with head branch (or current branch in case of 'push' event name)
+ * and in case of 'tag' method also check if release already exists on given commit
+ * @param {*} octokit                - authorized instance of github.rest client
+ * @param {*} context                - github action context
+ * @param {string} releaseNamePrefix - release name prefix (i.e 'v')
+ * @param {string} releaseNameMethod - tag (get latest release) or branch (parse release from branch name)
+ * @returns {*}
+ */
 async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNameMethod) {
     let headBranch;
     let releaseName;
     let bumpMinor = false;
     let alreadyExists = false;
-    let cleanVersion;
+    let cleanVersion; // version without prefix
 
     const { eventName, headRef, refName } = context;
     core.debug(`Context: ${JSON.stringify(context)}`);
@@ -54622,6 +54662,12 @@ async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNa
     return { releaseName, headBranch, alreadyExists };
 }
 
+/**
+ * Create new Github release
+ * @param {*} octokit - authorized instance of github.rest client
+ * @param {*} options - createRelease options
+ * @returns {boolean}
+ */
 async function createGithubReleaseFn(octokit, options) {
     let alreadyExists = false;
     try {
@@ -54637,6 +54683,11 @@ async function createGithubReleaseFn(octokit, options) {
     return alreadyExists;
 }
 
+/**
+ * Converts github markdown to slack markdown and sends it to slack
+ * @param {*} slackToken - slack token
+ * @param {*} options    - postMessage options
+ */
 async function sendReleaseNotesToSlack(slackToken, options) {
     const { channel, text, changelog, repository, releaseName } = options;
     const message = `_Repository_: *${repository}* _Revision_: *${releaseName}*\n${slackifyMarkdown(changelog)}`;
@@ -54914,6 +54965,11 @@ const {
     sendReleaseNotesToSlack,
 } = __nccwpck_require__(1608);
 
+/**
+ * Exit if release already exists
+ * @param {boolean} alreadyExists - indicates whether release already exists
+ * @param {string} releaseName    - release name
+ */
 function alreadyExistsExit(alreadyExists, releaseName) {
     if (alreadyExists) {
         core.info(`Release ${releaseName} already exists. Exiting..`);
@@ -54921,6 +54977,16 @@ function alreadyExistsExit(alreadyExists, releaseName) {
     }
 }
 
+/**
+ * Create changelog according to selected method
+ * @param {*} method          - will determine the way of changelog generation
+ * @param {*} octokit         - authorized instance of github.rest client
+ * @param {*} scopes          - convectional commits scopes to group changelog items
+ * @param {*} context         - github action context
+ * @param {string} baseBranch - base branch/commit to start comparison from
+ * @param {string} headBranch - head branch/commit to start comparison from
+ * @returns {string}
+ */
 async function createChangelog(
     method,
     octokit,
@@ -54938,7 +55004,7 @@ async function createChangelog(
         case 'pull_request_commits':
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
-        case 'git_diff':
+        case 'commits_compare':
             githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
             break;
         default:
@@ -54948,6 +55014,9 @@ async function createChangelog(
     return githubChangelog;
 }
 
+/**
+ * Execute main logic
+ */
 async function run() {
     const githubToken = core.getInput('github-token');
     const slackToken = core.getInput('slack-token');

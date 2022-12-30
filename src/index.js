@@ -11,6 +11,11 @@ const {
     sendReleaseNotesToSlack,
 } = require('./utils');
 
+/**
+ * Exit if release already exists
+ * @param {boolean} alreadyExists - indicates whether release already exists
+ * @param {string} releaseName    - release name
+ */
 function alreadyExistsExit(alreadyExists, releaseName) {
     if (alreadyExists) {
         core.info(`Release ${releaseName} already exists. Exiting..`);
@@ -18,6 +23,16 @@ function alreadyExistsExit(alreadyExists, releaseName) {
     }
 }
 
+/**
+ * Create changelog according to selected method
+ * @param {*} method          - will determine the way of changelog generation
+ * @param {*} octokit         - authorized instance of github.rest client
+ * @param {*} scopes          - convectional commits scopes to group changelog items
+ * @param {*} context         - github action context
+ * @param {string} baseBranch - base branch/commit to start comparison from
+ * @param {string} headBranch - head branch/commit to start comparison from
+ * @returns {string}
+ */
 async function createChangelog(
     method,
     octokit,
@@ -35,7 +50,7 @@ async function createChangelog(
         case 'pull_request_commits':
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
-        case 'git_diff':
+        case 'commits_compare':
             githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
             break;
         default:
@@ -45,6 +60,9 @@ async function createChangelog(
     return githubChangelog;
 }
 
+/**
+ * Execute main logic
+ */
 async function run() {
     const githubToken = core.getInput('github-token');
     const slackToken = core.getInput('slack-token');

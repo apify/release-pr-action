@@ -18,6 +18,12 @@ const GIT_MESSAGE_FLAGS = {
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
 
+/**
+ * Converts structured changelog (object) to changelog message (string)
+ * @param {*} changelogStructure - changelog object
+ * @param {*} scopes             - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 function structureChangelog(changelogStructure, scopes) {
     const whitelistedScopes = Object.keys(scopes);
     const scopesText = whitelistedScopes
@@ -43,6 +49,12 @@ function structureChangelog(changelogStructure, scopes) {
     return scopesText.join('\n');
 }
 
+/**
+ * Parse commit messages and convert them into human readable changelog
+ * @param {*} gitMessages - commit messages
+ * @param {*} scopes      - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
     const whitelistedScopes = Object.keys(scopes);
