@@ -54444,7 +54444,7 @@ const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d
 
 const CHANGELOG_ANNOTATION = '<!-- CHANGELOG -->';
 const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
-    + ` Content between ${CHANGELOG_ANNOTATION} comments will be used to make github release and slack message`;
+    + ' Content between CHANGELOG comments will be used to make github release and slack message';
 const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}`, 'mg');
 
 /**
