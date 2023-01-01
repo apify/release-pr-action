@@ -38280,7 +38280,7 @@ async function changeLogForSlack(changelogStructure, scopes) {
         .filter((scope) => (changelogStructure.user[scope].length
             || changelogStructure.admin[scope].length
             || changelogStructure.internal[scope].length));
-    let isOpenaiWorks = true;
+    let isOpenaiWorks = !!openai;
     const changeLogText = [];
     const changeLogV2Text = [];
     for (const scope of whitelistedScopes) {
@@ -38304,7 +38304,7 @@ async function changeLogForSlack(changelogStructure, scopes) {
                 scopeTextV2 += `${changeTypeTitle}\n${improvedText.trim()}\n\n`;
             } catch (err) {
                 isOpenaiWorks = false;
-                console.error(err);
+                core.error(err);
             }
         }
         changeLogText.push(scopeText);
@@ -38433,12 +38433,14 @@ async function prepareChangeLog(gitMessages, scopes) {
 }
 
 async function improveChangeLog(changeList) {
-    if (!process.env.OPEN_AI_TOKEN) throw new Error('Cannot improve changelog, missing OPEN_AI_TOKEN env variable.');
+    if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
     const completion = await openai.createCompletion({
         model: 'text-davinci-003',
         prompt: `${OPEN_AI_IMPROVE_CHANGELOG_REQUEST}\n${changeList.map((line) => `* \`${line}\``).join('\n')}`,
         max_tokens: 512,
         temperature: 0.5,
+    }, {
+        timeout: 10000,
     });
 
     if (!completion.data.choices[0]) throw new Error('Cannot generate improve changelog.');
@@ -38459,16 +38461,19 @@ module.exports = {
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 const { Configuration, OpenAIApi } = __nccwpck_require__(9211);
+const core = __nccwpck_require__(2186);
 
 const OPEN_AI_IMPROVE_CHANGELOG_REQUEST = `You are an expert programmer, and you are trying to rewrite release changes into user-friendly text.
-For each line bellow write one meaningful past infinitive sentence, starting each bullet point with a \`* \`, and the sentence ends with \`.\`.`;
+For each line below, write one meaningful past infinitive sentence, starting each bullet point with a \`* \`, and the sentence ends with \`.\`.`;
+
+const OPEN_AI_TOKEN = core.getInput('open-ai-token') || process.env.OPEN_AI_TOKEN;
 
 const openaiConfiguration = new Configuration({
-    apiKey: process.env.OPEN_AI_TOKEN,
+    apiKey: OPEN_AI_TOKEN,
 });
 
 module.exports = {
-    openai: new OpenAIApi(openaiConfiguration),
+    openai: OPEN_AI_TOKEN ? new OpenAIApi(openaiConfiguration) : null,
     OPEN_AI_IMPROVE_CHANGELOG_REQUEST,
 };
 

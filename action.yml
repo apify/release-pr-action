@@ -19,6 +19,9 @@ inputs:
     required: false
     default: branch
     description: 'Fetch commit history, either by diff of head and branch or latest tag and HEAD'
+  open-ai-token:
+    required: false
+    description: 'Experimental feature: OpenAI token for improving changelog using text model'
 outputs:
   changelog:
     description: 'Changelog content'

@@ -32,7 +32,7 @@ async function changeLogForSlack(changelogStructure, scopes) {
         .filter((scope) => (changelogStructure.user[scope].length
             || changelogStructure.admin[scope].length
             || changelogStructure.internal[scope].length));
-    let isOpenaiWorks = !!process.env.OPEN_AI_TOKEN;
+    let isOpenaiWorks = !!openai;
     const changeLogText = [];
     const changeLogV2Text = [];
     for (const scope of whitelistedScopes) {
@@ -185,7 +185,7 @@ async function prepareChangeLog(gitMessages, scopes) {
 }
 
 async function improveChangeLog(changeList) {
-    if (!process.env.OPEN_AI_TOKEN) throw new Error('Cannot improve changelog, missing OPEN_AI_TOKEN env variable.');
+    if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
     const completion = await openai.createCompletion({
         model: 'text-davinci-003',
         prompt: `${OPEN_AI_IMPROVE_CHANGELOG_REQUEST}\n${changeList.map((line) => `* \`${line}\``).join('\n')}`,

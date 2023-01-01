@@ -12,13 +12,14 @@ This action is used to create release pull request with:
 
 ## Action input
 
-| Name                  | Description                                                                    | Example                         | Required |
-|-----------------------|--------------------------------------------------------------------------------|---------------------------------|----------|
-| `repo-token`          | Repository Github token                                                        | `github-token`                  | yes      |
-| `changelog-scopes`    | Scopes, that will be show in changelog                                         | `{"Worker": ["worker"]}`        | yes      |
-| `base-branch`         | Based branch where pull request will be created                                | `master`                        | no       |
-| `create-pull-request` | Whether to create release pull request                                         | `false`                         | no       |
-| `compare-method`      | Fetch commit history, either by diff of head and branch or latest tag and HEAD | `branch`, `tag`, `pull_request` | no       |
+| Name                  | Description                                                                     | Example                         | Required |
+|-----------------------|---------------------------------------------------------------------------------|---------------------------------|----------|
+| `repo-token`          | Repository Github token                                                         | `github-token`                  | yes      |
+| `changelog-scopes`    | Scopes, that will be show in changelog                                          | `{"Worker": ["worker"]}`        | yes      |
+| `base-branch`         | Based branch where pull request will be created                                 | `master`                        | no       |
+| `create-pull-request` | Whether to create release pull request                                          | `false`                         | no       |
+| `compare-method`      | Fetch commit history, either by diff of head and branch or latest tag and HEAD  | `branch`, `tag`, `pull_request` | no       |
+| `open-ai-token`       | Experimental feature see section [experimental feature](#experimental-feature). | `token`                         | no       |
 
 ## Action output
 
@@ -29,7 +30,7 @@ This action is used to create release pull request with:
 ## Experimental feature
 
 An experimental feature will rewrite the final changelog using GPT-3 davinci language model.
-If you want to try, you need to pass the `OPEN_AI_TOKEN` environment variable with your API token from [openai.com](https://beta.openai.com/).
+If you want to try, you need to pass the `open-ai-token` action input with your API token from [openai.com](https://beta.openai.com/).
 
 ## Example usage
 
