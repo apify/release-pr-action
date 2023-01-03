@@ -1,26 +1,103 @@
 const core = require('@actions/core');
 const github = require('@actions/github');
-const childProcess = require('child_process');
 const fs = require('fs/promises');
-const { promisify } = require('util');
-const { prepareChangeLog } = require('./change_log');
-const { createOrUpdatePullRequest } = require('./pr_helper');
+const {
+    createOrUpdatePullRequest,
+    getChangelogFromPullRequestDescription,
+    getChangelogFromPullRequestCommits,
+    getChangelogFromCompareBranches,
+    getReleaseNameInfo,
+    createGithubReleaseFn,
+    sendReleaseNotesToSlack,
+} = require('./utils');
 
-const exec = promisify(childProcess.exec);
+/**
+ * Exit if release already exists
+ * @param {boolean} alreadyExists - indicates whether release already exists
+ * @param {string} releaseName    - release name
+ */
+function alreadyExistsExit(alreadyExists, releaseName) {
+    if (alreadyExists) {
+        core.info(`Release ${releaseName} already exists. Exiting..`);
+        process.exit(0);
+    }
+}
 
+/**
+ * Create changelog according to selected method
+ * @param {*} method          - will determine the way of changelog generation
+ * @param {*} octokit         - authorized instance of github.rest client
+ * @param {*} scopes          - convectional commits scopes to group changelog items
+ * @param {*} context         - github action context
+ * @param {string} baseBranch - base branch/commit to start comparison from
+ * @param {string} headBranch - head branch/commit to start comparison from
+ * @returns {string}
+ */
+async function createChangelog(
+    method,
+    octokit,
+    scopes,
+    context,
+    baseBranch,
+    headBranch,
+) {
+    let githubChangelog;
+
+    switch (method) {
+        case 'pull_request_description':
+            githubChangelog = await getChangelogFromPullRequestDescription(octokit, context);
+            break;
+        case 'pull_request_commits':
+            githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
+            break;
+        case 'commits_compare':
+            githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
+            break;
+        default:
+            core.error(`Unrecognized "changelog-method" input: ${method}`);
+            break;
+    }
+    return githubChangelog;
+}
+
+/**
+ * Execute main logic
+ */
 async function run() {
-    const repoToken = core.getInput('repo-token');
+    const githubToken = core.getInput('github-token');
+    const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');
-    const baseBranch = core.getInput('base-branch') || 'master';
-    // inputs are always strings hence default is 'true' and not true
-    const createReleasePullRequest = core.getInput('create-pull-request') || 'true';
-    const compareMethod = core.getInput('compare-method') || 'branch';
-    const changelogFileDestination = core.getInput('changelog-file-destination') || 'changelog.txt';
+    const changelogMethod = core.getInput('changelog-method');
+    const releaseNameMethod = core.getInput('release-name-method');
+    const baseBranch = core.getInput('base-branch');
+    const releaseNamePrefix = core.getInput('release-name-prefix');
+    const createReleasePullRequest = core.getBooleanInput('create-release-pull-request');
+    const createGithubRelease = core.getBooleanInput('create-github-release');
+    const slackChannel = core.getInput('slack-channel');
+    const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
 
-    const { ref } = github.context;
-    const version = ref.split('/').pop();
-    const branch = ref.split('heads/').pop();
-    const repoOctokit = github.getOctokit(repoToken);
+    const octokit = github.getOctokit(githubToken);
+    const context = {
+        ...github.context,
+        headRef: process.env.GITHUB_HEAD_REF,
+        refName: process.env.GITHUB_REF_NAME,
+        repository: process.env.GITHUB_REPOSITORY,
+        // github.context.repo is getter
+        repo: github.context.repo,
+    };
+
+    const {
+        releaseName,
+        headBranch,
+        alreadyExists,
+    } = await getReleaseNameInfo(
+        octokit,
+        context,
+        releaseNamePrefix,
+        releaseNameMethod,
+    );
+
+    alreadyExistsExit(alreadyExists, releaseName);
 
     let scopes;
     try {
@@ -29,62 +106,55 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    let gitMessages;
-    if (compareMethod === 'pull_request') {
-        // Get PR number
-        const eventFileContent = await fs.readFile(process.env.GITHUB_EVENT_PATH);
-        const prNumber = JSON.parse(eventFileContent).pull_request.number;
+    const githubChangelog = await createChangelog(
+        changelogMethod,
+        octokit,
+        scopes,
+        context,
+        baseBranch,
+        headBranch,
+    );
 
-        if (!prNumber) throw new Error('Could not obtain pull request\'s number. Was the workflow trigger "pull_request"?');
-        const gitLog = await repoOctokit.rest.pulls.listCommits({
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            pull_number: prNumber,
-        });
-        gitMessages = gitLog.data.map((commit) => commit.commit.message);
-    } else {
-        let gitLog;
-        // Fetch base and head branches with history and git message log diff
-        // TODO: Maybe we could use github API in this part as well
-        if (compareMethod === 'branch') {
-            await exec(`git fetch origin ${baseBranch} ${branch}`);
-            ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' origin/${branch} ^origin/${baseBranch}`));
-        } else if (compareMethod === 'tag') {
-            // NOTE: This method does not work as expected, because commits cannot be sorted by merge date,
-            //       thus changelog does not have to contain all the commit messages
-
-            // fetch base branch and get commit history from latest tag. If tag is not found fetch whole history.
-            await exec(`git fetch origin ${baseBranch}`);
-            const { stdout: tag } = await exec(`git describe --tags --abbrev=0`);
-            const start = tag ? `${tag.replace(/[\r\n]/gm, '')}..` : '';
-            ({ stdout: gitLog } = await exec(`git log --no-merges --pretty='%s' ${start}HEAD`));
-        } else {
-            throw new Error(`Unrecognized "compare-method" value: ${compareMethod}`);
-        }
-        gitMessages = gitLog.split('\n').filter((entry) => !!entry.trim());
-    }
-
-    const releaseChangeLog = prepareChangeLog(gitMessages, scopes);
-
-    if (createReleasePullRequest === 'true') {
+    if (createReleasePullRequest) {
         core.info('Opening the release pull request');
-        await createOrUpdatePullRequest(repoOctokit, {
-            owner: github.context.repo.owner,
-            repo: github.context.repo.repo,
-            title: `Release ${version}`,
-            head: branch,
+        await createOrUpdatePullRequest(octokit, {
+            ...context.repo,
+            title: `Release ${releaseName}`,
+            head: headBranch,
             base: baseBranch,
-            body: `# Release changelog\n`
-                + `${releaseChangeLog}`,
+            changelog: githubChangelog,
         });
     }
+
+    if (createGithubRelease) {
+        const releaseAlreadyExists = await createGithubReleaseFn(octokit, {
+            ...context.repo,
+            tag_name: releaseName,
+            name: releaseName,
+            target_commitish: baseBranch,
+            body: githubChangelog,
+        });
+        alreadyExistsExit(releaseAlreadyExists, releaseName);
+    }
+
+    if (slackChannel) {
+        core.info(`Sending release notes to ${slackChannel} slack channel`);
+        await sendReleaseNotesToSlack(slackToken, {
+            channel: slackChannel,
+            text: 'Release notes', // This is just fallback for slack api
+            changelog: githubChangelog,
+            repository: context.repository,
+            releaseName,
+        });
+    }
+
     // Write file to disk, because sometimes it can be easier to read it from file-system,
     // rather than interpolate it in the script, which can cause syntax error.
     // NOTE: This will work only if this action and consumer are executed within one job.
     //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
-    await fs.writeFile(changelogFileDestination, releaseChangeLog, 'utf-8');
-    core.setOutput('changelog', releaseChangeLog);
-    core.setOutput('changelogFileDestination', changelogFileDestination);
+    await fs.writeFile(githubChangelogFileDestination, githubChangelog, 'utf-8');
+    core.setOutput('github-changelog', githubChangelog);
+    core.setOutput('github-changelog-file-destination', githubChangelogFileDestination);
 }
 
 run();

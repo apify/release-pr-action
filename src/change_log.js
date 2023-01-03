@@ -1,6 +1,5 @@
 const core = require('@actions/core');
 const commitParser = require('conventional-commits-parser');
-
 // Convention commit cannot parse multiple scopes see https://github.com/conventional-changelog/conventional-changelog/issues/232
 // We need to provide better pattern to parse header.
 const HEADER_PATTERN = /^(\w*)(?:\(([\w\$\.\-\*\, ]*)\))?\: (.*)$/; // eslint-disable-line no-useless-escape
@@ -19,7 +18,13 @@ const GIT_MESSAGE_FLAGS = {
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
 
-function changeLogForSlack(changelogStructure, scopes) {
+/**
+ * Converts structured changelog (object) to changelog message (string)
+ * @param {*} changelogStructure - changelog object
+ * @param {*} scopes             - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
+function structureChangelog(changelogStructure, scopes) {
     const whitelistedScopes = Object.keys(scopes);
     const scopesText = whitelistedScopes
         // filter out empty scopes
@@ -44,6 +49,12 @@ function changeLogForSlack(changelogStructure, scopes) {
     return scopesText.join('\n');
 }
 
+/**
+ * Parse commit messages and convert them into human readable changelog
+ * @param {*} gitMessages - commit messages
+ * @param {*} scopes      - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
     const whitelistedScopes = Object.keys(scopes);
@@ -93,7 +104,7 @@ function prepareChangeLog(gitMessages, scopes) {
 
             // Consider single scope with infra or ci as internal changes
             if (entry.scopes && entry.scopes.length === 1
-            && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
+                && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
                 changeType = 'internal';
             }
 
@@ -154,10 +165,10 @@ function prepareChangeLog(gitMessages, scopes) {
     //     }
     // });
 
-    const releaseChangelog = changeLogForSlack(changelogStructure, scopes);
+    const githubChangelog = structureChangelog(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
-    return releaseChangelog;
+    return githubChangelog;
 }
 
 module.exports = {
