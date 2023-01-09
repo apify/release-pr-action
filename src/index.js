@@ -10,8 +10,6 @@ const {
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 } = require('./utils');
-const { prepareChangeLog, PR_BODY_NOTE, PR_BODY_NOTE_V2 } = require('./change_log');
-const { createOrUpdatePullRequest } = require('./pr_helper');
 
 /**
  * Exit if release already exists
@@ -108,7 +106,6 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    // TDOD
     const githubChangelog = await createChangelog(
         changelogMethod,
         octokit,
@@ -118,13 +115,6 @@ async function run() {
         headBranch,
     );
 
-    const { releaseChangeLog, releaseChangeLogV2 } = await prepareChangeLog(gitMessages, scopes);
-    let prBody = `> ${releaseChangeLogV2 ? PR_BODY_NOTE_V2 : PR_BODY_NOTE}\n`;
-    prBody += `# Release changelog\n${releaseChangeLog}\n`;
-    if (releaseChangeLogV2) {
-        prBody += `# Release changelog\n${releaseChangeLogV2}\n`;
-    }
-
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
@@ -132,7 +122,7 @@ async function run() {
             title: `Release ${releaseName}`,
             head: headBranch,
             base: baseBranch,
-            changelog: prBody,
+            changelog: githubChangelog,
         });
     }
 
@@ -142,7 +132,7 @@ async function run() {
             tag_name: releaseName,
             name: releaseName,
             target_commitish: baseBranch,
-            body: prBody,
+            body: githubChangelog,
         });
         alreadyExistsExit(releaseAlreadyExists, releaseName);
     }
@@ -152,7 +142,7 @@ async function run() {
         await sendReleaseNotesToSlack(slackToken, {
             channel: slackChannel,
             text: 'Release notes', // This is just fallback for slack api
-            changelog: prBody,
+            changelog: githubChangelog,
             repository: context.repository,
             releaseName,
         });

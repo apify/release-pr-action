@@ -193,7 +193,7 @@ async function prepareChangeLog(gitMessages, scopes) {
     const { releaseChangelog, releaseChangelogV2 } = await changeLogForSlack(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
-    return { releaseChangelog, releaseChangelogV2 };
+    return releaseChangelogV2 || releaseChangelog;
 }
 
 async function improveChangeLog(changeList) {

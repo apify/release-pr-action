@@ -10,7 +10,7 @@ test('log correctly prepared', async () => {
         'feat(worker): Update packages [internal]',
         'feat: Change sign-up text (#46)',
     ];
-    const { releaseChangelog } = await prepareChangeLog(gitMessages, scopes);
+    const releaseChangelog = await prepareChangeLog(gitMessages, scopes);
     expect(releaseChangelog).toEqual(`**Worker**
 
 :rocket: _User-facing_
@@ -41,7 +41,7 @@ test('log correctly prepared for monorepo', async () => {
         'feat(api): New cool feature in API 💥 (#46)',
         'feat(intl): Change sign-up text (#46)',
     ];
-    const { releaseChangelog } = await prepareChangeLog(gitMessages, scopes);
+    const releaseChangelog = await prepareChangeLog(gitMessages, scopes);
     expect(releaseChangelog).toEqual(`**Console**
 
 :rocket: _User-facing_
