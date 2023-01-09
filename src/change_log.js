@@ -6,13 +6,6 @@ const { OPEN_AI_IMPROVE_CHANGELOG_REQUEST, openai } = require('./open_ai');
 // We need to provide better pattern to parse header.
 const HEADER_PATTERN = /^(\w*)(?:\(([\w\$\.\-\*\, ]*)\))?\: (.*)$/; // eslint-disable-line no-useless-escape
 
-const PR_BODY_NOTE = 'You can edit changelog as you wish. '
-    + 'The first Release changelog section will be published in the slack message after successful release.';
-
-const PR_BODY_NOTE_V2 = 'There are two changelogs: The first one is generated from PR titles. '
-    + 'The second one is generated using gpt-3 from the original one. '
-    + `If you like the second one more, you need to delete the first one to propagate it into slack. ${PR_BODY_NOTE}`;
-
 /*
  * Commit message flags
  * Use to mark commit messages and PR titles with flag in square brackets.
@@ -33,7 +26,7 @@ const GIT_COMMIT_CI_SCOPE = 'ci';
  * @param {*} scopes             - convectional commits scopes to group changelog items
  * @returns {string}
  */
-async function changeLogForSlack(changelogStructure, scopes) {
+async function structureChangelog(changelogStructure, scopes) {
     const whitelistedScopes = Object.keys(scopes)
         .filter((scope) => (changelogStructure.user[scope].length
             || changelogStructure.admin[scope].length
@@ -190,7 +183,7 @@ async function prepareChangeLog(gitMessages, scopes) {
     //     }
     // });
 
-    const { releaseChangelog, releaseChangelogV2 } = await changeLogForSlack(changelogStructure, scopes);
+    const { releaseChangelog, releaseChangelogV2 } = await structureChangelog(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
     return releaseChangelogV2 || releaseChangelog;
@@ -214,6 +207,4 @@ async function improveChangeLog(changeList) {
 
 module.exports = {
     prepareChangeLog,
-    PR_BODY_NOTE,
-    PR_BODY_NOTE_V2,
 };
