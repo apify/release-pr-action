@@ -27,6 +27,12 @@ const GIT_MESSAGE_FLAGS = {
 const GIT_COMMIT_INFRA_SCOPE = 'infra';
 const GIT_COMMIT_CI_SCOPE = 'ci';
 
+/**
+ * Converts structured changelog (object) to changelog message (string)
+ * @param {*} changelogStructure - changelog object
+ * @param {*} scopes             - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 async function changeLogForSlack(changelogStructure, scopes) {
     const whitelistedScopes = Object.keys(scopes)
         .filter((scope) => (changelogStructure.user[scope].length
@@ -68,6 +74,12 @@ async function changeLogForSlack(changelogStructure, scopes) {
     };
 }
 
+/**
+ * Parse commit messages and convert them into human readable changelog
+ * @param {*} gitMessages - commit messages
+ * @param {*} scopes      - convectional commits scopes to group changelog items
+ * @returns {string}
+ */
 async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
     const whitelistedScopes = Object.keys(scopes);
@@ -117,7 +129,7 @@ async function prepareChangeLog(gitMessages, scopes) {
 
             // Consider single scope with infra or ci as internal changes
             if (entry.scopes && entry.scopes.length === 1
-            && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
+                && (entry.scopes.includes(GIT_COMMIT_INFRA_SCOPE) || entry.scopes.includes(GIT_COMMIT_CI_SCOPE))) {
                 changeType = 'internal';
             }
 

@@ -1,32 +1,53 @@
 name: 'Release pull request'
 description: 'It creates release pull request'
 inputs:
-  repo-token:
+  github-token:
     required: true
-    description: 'Repository Github token'
+    description: 'Github token with repository scope permissions'
+  slack-token:
+    required: false
+    description: 'Slack token (needed if slack-channel input is set)'
   changelog-scopes:
     required: true
     description: 'Scopes which will be used in changelog (the first scope will be used as default for commit messages without scope)'
+  changelog-method:
+    required: true
+    description: 'Generate changelog from: pull_request_description|pull_request_commits|commits_compare'
+  release-name-method:
+    required: false
+    default: 'branch'
+    description: 'Whether to fetch release name from branch name or bump minor of last release'
+  create-release-pull-request:
+    required: false
+    default: false
+    description: 'Create release pull request'
+  create-github-release:
+    required: false
+    default: false
+    description: 'Create new github release'
+  slack-channel:
+    required: false
+    description: 'Slack channel to which the changelog should be send'
   base-branch:
     required: false
     default: master
     description: 'Base branch where you want to do release pull request'
-  create-pull-request:
+  release-name-prefix:
+    description: 'Prepend prefix to releaseName (version)'
     required: false
-    default: true
-    description: 'Whether to create release pull request'
-  compare-method:
+    default: 'v'
+  github-changelog-file-destination:
     required: false
-    default: branch
-    description: 'Fetch commit history, either by diff of head and branch or latest tag and HEAD'
+    default: 'changelog.md'
+    description: 'Where to store github changelog on filesystem'
   open-ai-token:
     required: false
     description: 'Experimental feature: OpenAI token for improving changelog using text model'
 outputs:
-  changelog:
-    description: 'Changelog content'
-  changelogFileDestination:
-    description: 'Path to changelog file stored in file-system'
+  github-changelog:
+    description: 'Changelog content in GihHub markdown'
+  github-changelog-file-destination:
+    description: 'Path to Github changelog file stored in file-system'
 runs:
   using: 'node16'
   main: 'dist/index.js'
