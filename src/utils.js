@@ -3,13 +3,18 @@ const { WebClient } = require('@slack/web-api');
 // Not very popular package, but did not find a better one.
 const slackifyMarkdown = require('slackify-markdown');
 const { prepareChangeLog } = require('./change_log');
+const { openai } = require('./open_ai');
 
 // eslint-disable-next-line max-len
 const SEMVER_REGEX = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
 
 const CHANGELOG_ANNOTATION = '<!-- CHANGELOG -->';
 const PULL_REQUEST_BODY_NOTE = '> Edit the pull request description to your liking.'
-    + ' Content between CHANGELOG comments will be used to make github release and slack message';
+    + ' Content between CHANGELOG comments will be used to make github release and slack message.';
+
+const PULL_REQUEST_BODY_NOTE_V2 = `${PULL_REQUEST_BODY_NOTE} The change log is generated using gpt-3 from the original PR titles. `
+    + 'Keep in mind this as the change log is not guaranteed to be accurate.';
+
 const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}`, 'mg');
 
 /**
@@ -19,7 +24,8 @@ const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG
  */
 async function createOrUpdatePullRequest(octokit, options) {
     const { owner, repo, head, base, changelog, ...theRestOptions } = options;
-    const body = `${PULL_REQUEST_BODY_NOTE}\n${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}`;
+    const body = `${openai ? PULL_REQUEST_BODY_NOTE_V2 : PULL_REQUEST_BODY_NOTE}\n`
+        + `${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}`;
     try {
         core.info(`Creating pull request ${base} <- ${head}`);
         await octokit.rest.pulls.create({

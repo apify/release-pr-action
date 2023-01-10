@@ -40,6 +40,9 @@ inputs:
     required: false
     default: 'changelog.md'
     description: 'Where to store github changelog on filesystem'
+  open-ai-token:
+    required: false
+    description: 'Experimental feature: OpenAI token for improving changelog using text model'
 outputs:
   github-changelog:
     description: 'Changelog content in GihHub markdown'

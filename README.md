@@ -14,7 +14,7 @@ This action is used to create release from commit history with
 
 ## Action input
 
-| Name                                | Description                                                                    | Example                         | Default        | Required | 
+| Name                                | Description                                                                    | Example                         | Default        | Required |
 |-------------------------------------|--------------------------------------------------------------------------------|---------------------------------|----------------|----------|
 | `github-token`                      | Github token with repository scope permissions                                 | `${{ secrets.GITHUB_TOKEN }}`   | NO DEFAULT     | yes      |
 | `changelog-scopes`                  | Scopes, that will be show in changelog                                         | `{"Worker": ["worker"]}`        | NO DEFAULT     | yes      |
@@ -27,6 +27,7 @@ This action is used to create release from commit history with
 | `base-branch`                       | Based branch where pull request will be created                                | `master`                        | `master`       | no       |
 | `release-name-prefix`               | Prepend prefix to release name (version)                                       | `v`                             | `v`            | no       |
 | `github-changelog-file-destination` | Where to store github changelog on filesystem                                  | `github_changelog.md`           | `changelog.md` | no       |
+| `open-ai-token`                     | Experimental feature see section [experimental feature](#experimental-feature).| `token`                         | NO_DEFAULT     | no       |
 
 ### Input details
 
@@ -49,6 +50,11 @@ This action is used to create release from commit history with
 | `github-changelog`                  | Changelog content           | `some cool feature` |
 | `github-changelog-file-destination` | Changelog file destionation | `./changelog.md`    |
 
+## Experimental feature
+
+An experimental feature will rewrite the final changelog using GPT-3 davinci language model.
+If you want to try, you need to pass the `open-ai-token` action input with your API token from [openai.com](https://beta.openai.com/).
+
 ## Example usage
 
 Example bellow opens pull request from head to base branch with changelog in it's description
@@ -67,7 +73,7 @@ jobs:
     steps:
       - name: run release-pr-action
         uses: apify/release-pr-action
-        with: 
+        with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           changelog-scopes: '{"Worker": ["worker"]}'
           create-release-pull-request: true
@@ -90,7 +96,7 @@ jobs:
     steps:
       - name: run release-pr-action
         uses: apify/release-pr-action
-        with: 
+        with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           slack-token: ${{ secrets.slackToken }}
           changelog-scopes: '{"Worker": ["worker"]}'
