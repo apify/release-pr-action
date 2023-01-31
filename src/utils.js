@@ -104,6 +104,17 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     return prepareChangeLog(commitMessages, scopes);
 }
 
+async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
+    const pullNumber = context.payload.pull_request.number;
+    core.info(`Fetching changelog from pull request's title. Pull request number: ${pullNumber}`);
+    const { title } = (await octokit.rest.pulls.get({
+        ...context.repo,
+        pull_number: pullNumber,
+    })).data;
+    if (!title) throw new Error('Could not get pull requests title');
+    return prepareChangeLog([title], scopes);
+}
+
 /**
  * Generate changelog from branches comparison
  * @param {*} octokit         - authorized instance of github.rest client
@@ -277,6 +288,7 @@ module.exports = {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
+    getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
     createGithubReleaseFn,

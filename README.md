@@ -35,6 +35,7 @@ This action is used to create release from commit history with
   * `pull_request_description` - Changelog will taken from pull request's description (for `pull_request` trigger). Description can be edited manually.
                                  The resulting changelog text is taken from between `<!-- CHANGELOG -->` comments
   * `pull_request_commits`     - Changelog will taken from pull request's commit messages (for `pull_request` trigger)
+  * `pull_request_title`       - Changelog will be taken from pull request's title (for `pull_request` trigger)
   * `commits_compare`          - Changelog will taken from comparison of commit messages between 2 branches
 
 * both `slack-token` and `slack-channel` must be set to send message to slack
