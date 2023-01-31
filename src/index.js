@@ -5,6 +5,7 @@ const {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
+    getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
     createGithubReleaseFn,
@@ -49,6 +50,9 @@ async function createChangelog(
             break;
         case 'pull_request_commits':
             githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
+            break;
+        case 'pull_request_title':
+            githubChangelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
             break;
         case 'commits_compare':
             githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
