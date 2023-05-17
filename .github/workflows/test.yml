@@ -21,4 +21,4 @@ jobs:
           node-version: 16.x
 
       - name: run
-        run: 'dist/index.js'
+        run: 'node dist/index.js'
