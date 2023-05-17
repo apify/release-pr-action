@@ -60223,8 +60223,11 @@ async function createChangelog(
  * Execute main logic
  */
 async function run() {
-    core.info('findme here');
+    core.info('findme here 1');
     const githubToken = core.getInput('github-token');
+    core.info('gh token', githubToken);
+    core.info('findme here 2');
+
     const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const changelogMethod = core.getInput('changelog-method');
