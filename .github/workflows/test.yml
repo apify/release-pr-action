@@ -6,7 +6,7 @@ on:
 
   push:
     branches:
-      - cc/test
+      - test/cc
 
 jobs:
   test:
