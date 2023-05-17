@@ -10,6 +10,7 @@ on:
 
 jobs:
   test:
+
     runs-on: ubuntu-latest
     steps:
       - name: Clone repository
@@ -21,6 +22,7 @@ jobs:
           node-version: 16.x
 
       - name: run
-        run: 'node dist/index.js'
+        uses: ./
         with:
-          github_token: 'FOO'
+          github-token: 'GH TOKEN'
+

@@ -70,6 +70,7 @@ async function createChangelog(
 async function run() {
     core.info('findme here');
     const githubToken = core.getInput('github-token');
+    console.log('gh token', githubToken);
     const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const changelogMethod = core.getInput('changelog-method');
