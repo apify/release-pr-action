@@ -22,3 +22,5 @@ jobs:
 
       - name: run
         run: 'node dist/index.js'
+        with:
+          github_token: 'FOO'
