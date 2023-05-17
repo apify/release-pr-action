@@ -8,10 +8,6 @@ on:
     branches:
       - cc/test
 
-concurrency: # This is to make sure that it's executed only for the most recent changes of PR.
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
