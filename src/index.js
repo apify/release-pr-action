@@ -68,6 +68,7 @@ async function createChangelog(
  * Execute main logic
  */
 async function run() {
+    core.info('findme here');
     const githubToken = core.getInput('github-token');
     const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');

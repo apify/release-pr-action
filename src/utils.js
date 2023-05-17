@@ -133,19 +133,19 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
     for (const page of compareResponse) {
         // https://docs.github.com/en/graphql/reference/objects#commit
         for (const commit of page.commits) {
-            // https://docs.github.com/en/graphql/reference/objects#pullrequestconnection
-            for (const prConnection of commit.associatedPullRequests) {
-                for (const pr in prConnection.nodes) {
-                    // We need to fetch the PR to get the followers
-                    const fullPr = octokit.rest.pulls.get({
-                        ...context.repo,
-                        pull_number,
-                    });
-                    core.info(`findme PR ${JSON.stringify(pr)}`);
-                    core.info(`findme fullPr ${JSON.stringify(fullPr)}`);
-                }
+            // // https://docs.github.com/en/graphql/reference/objects#pullrequestconnection
+            // for (const prConnection of commit.associatedPullRequests) {
+            //     for (const pr of prConnection.nodes) {
+            //         // We need to fetch the PR to get the followers
+            //         const fullPr = octokit.rest.pulls.get({
+            //             ...context.repo,
+            //             pull_number,
+            //         });
+            //         core.info(`findme PR ${JSON.stringify(pr)}`);
+            //         core.info(`findme fullPr ${JSON.stringify(fullPr)}`);
+            //     }
 
-            }
+            // }
 
             commitMessages.push(commit.commit.message);
         }

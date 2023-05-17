@@ -13,5 +13,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: run
-        # run: 'dist/index.js'
-        run: "echo TEST"
+        run: 'dist/index.js'
