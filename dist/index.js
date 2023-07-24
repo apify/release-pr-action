@@ -38811,7 +38811,6 @@ async function structureChangelog(changelogStructure, scopes) {
                 scopeTextV2 += `${changeTypeTitle}\n${improvedText.trim()}\n\n`;
             } catch (err) {
                 isOpenaiWorks = false;
-                console.error(err);
                 core.error(err);
             }
         }
@@ -38951,7 +38950,6 @@ async function prepareChangeLog(gitMessages, scopes) {
 }
 
 async function improveChangeLog(changeList) {
-    console.log(changeList.map((line) => `* \`${line}\``).join('\n'));
     if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
     const completion = await openai.createChatCompletion({
         model: 'gpt-3.5-turbo',
