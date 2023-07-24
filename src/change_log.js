@@ -1,6 +1,10 @@
 const core = require('@actions/core');
 const commitParser = require('conventional-commits-parser');
-const { OPEN_AI_IMPROVE_CHANGELOG_REQUEST, openai } = require('./open_ai');
+
+const {
+    OPEN_AI_IMPROVE_CHANGELOG_REQUEST,
+    OPEN_AI_IMPROVE_CHANGELOG_ROLE_DEFINITION,
+    openai } = require('./open_ai');
 
 // Convention commit cannot parse multiple scopes see https://github.com/conventional-changelog/conventional-changelog/issues/232
 // We need to provide better pattern to parse header.
@@ -39,7 +43,6 @@ async function structureChangelog(changelogStructure, scopes) {
         let scopeTextV2 = `**${scope}**\n\n`;
 
         for (const changeType of ['user', 'admin', 'internal']) {
-            // eslint-disable-next-line no-continue
             if (!changelogStructure[changeType][scope].length) continue;
             let changeTypeTitle;
             if (changeType === 'user') changeTypeTitle = ':rocket: _User-facing_';
@@ -48,13 +51,13 @@ async function structureChangelog(changelogStructure, scopes) {
 
             scopeText += `${changeTypeTitle}\n${changelogStructure[changeType][scope].map((entry) => `* ${entry}`).join('\n')}\n\n`;
 
-            // eslint-disable-next-line no-continue
             if (!isOpenaiWorks) continue;
             try {
                 const improvedText = await improveChangeLog(changelogStructure[changeType][scope]);
                 scopeTextV2 += `${changeTypeTitle}\n${improvedText.trim()}\n\n`;
             } catch (err) {
                 isOpenaiWorks = false;
+                console.error(err);
                 core.error(err);
             }
         }
@@ -102,6 +105,10 @@ async function prepareChangeLog(gitMessages, scopes) {
             return parsed;
         })
         .filter((entry) => {
+            // Filter out commits with empty string as subject
+            if (!entry.subject.trim()) {
+                return false;
+            }
             // Filter out [skip ci] and [ignore] commits
             if (entry.flags && (entry.flags.includes(GIT_MESSAGE_FLAGS.SKIP_CI)
                 || entry.flags.includes(GIT_MESSAGE_FLAGS.IGNORE))) {
@@ -190,19 +197,32 @@ async function prepareChangeLog(gitMessages, scopes) {
 }
 
 async function improveChangeLog(changeList) {
+    console.log(changeList.map((line) => `* \`${line}\``).join('\n'));
     if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
-    const completion = await openai.createCompletion({
-        model: 'text-davinci-003',
-        prompt: `${OPEN_AI_IMPROVE_CHANGELOG_REQUEST}\n${changeList.map((line) => `* \`${line}\``).join('\n')}`,
-        max_tokens: 512,
-        temperature: 0.5,
+    const completion = await openai.createChatCompletion({
+        model: 'gpt-3.5-turbo',
+        messages: [
+            {
+                role: 'system',
+                content: OPEN_AI_IMPROVE_CHANGELOG_ROLE_DEFINITION,
+            },
+            {
+                role: 'user',
+                content: OPEN_AI_IMPROVE_CHANGELOG_REQUEST,
+            },
+            {
+                role: 'user',
+                content: changeList.map((line) => `* \`${line}\``).join('\n'),
+            },
+        ],
+        temperature: 0.1,
     }, {
-        timeout: 10000,
+        timeout: 20000,
     });
 
-    if (!completion.data.choices[0]) throw new Error('Cannot generate improve changelog.');
+    if (!completion.data?.choices[0]?.message) throw new Error('Cannot generate improve changelog.');
 
-    return completion.data.choices[0].text;
+    return completion.data?.choices[0]?.message?.content;
 }
 
 module.exports = {

@@ -2,6 +2,7 @@ const core = require('@actions/core');
 const { WebClient } = require('@slack/web-api');
 // Not very popular package, but did not find a better one.
 const slackifyMarkdown = require('slackify-markdown');
+
 const { prepareChangeLog } = require('./change_log');
 const { openai } = require('./open_ai');
 

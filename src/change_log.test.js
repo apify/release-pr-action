@@ -33,6 +33,7 @@ test('log correctly prepared for monorepo', async () => {
         'feat(app): some admin change [admin]',
         'feat(console): feature with console scope',
         'feat(api): Api internal change [internal]',
+        'feat(api): [internal]',
         'chore(ci, app, api): Change to ignore [skip ci]',
         'chore(ci): Change to ignore [ignore][admin]',
         'feat(api): Api change for user',
@@ -66,4 +67,29 @@ test('log correctly prepared for monorepo', async () => {
 * Api internal change
 
 `);
+});
+
+test('log correctly using openAI', async () => {
+    if (!process.env.OPEN_AI_TOKEN) {
+        console.warn('OPEN_AI_TOKEN not set, skipping test!');
+        return;
+    }
+    const scopes = { Console: ['app', 'console'], Api: ['api'], Empty: ['empty'] };
+    const gitMessages = [
+        'feat(app): some admin change [admin]',
+        'feat(console): feature with console scope',
+        'feat(api): Api internal change [internal]',
+        'chore(ci, app, api): Change to ignore [skip ci]',
+        'chore(ci): Change to ignore [ignore][admin]',
+        'feat(api): Api change for user',
+        'feat(app, api, ci): App + Api change for user',
+        'fix(ci): Some ci fix should be internal',
+        'feat(api): New cool feature in API 💥 (#46)',
+        'feat(intl): Change sign-up text (#46)',
+    ];
+    const releaseChangelog = await prepareChangeLog(gitMessages, scopes);
+    // NOTE: OpenAI is not deterministic, so we can't test for exact string, let's print it out to be able check.
+    console.log(releaseChangelog);
+    expect(releaseChangelog).toEqual(expect.stringContaining('**Console**'));
+    expect(releaseChangelog).toEqual(expect.stringContaining('**Api**'));
 });
