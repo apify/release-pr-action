@@ -1,6 +1,8 @@
+const fs = require('fs/promises');
+
 const core = require('@actions/core');
 const github = require('@actions/github');
-const fs = require('fs/promises');
+
 const {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
