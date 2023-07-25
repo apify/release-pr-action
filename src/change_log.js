@@ -4,7 +4,8 @@ const commitParser = require('conventional-commits-parser');
 const {
     OPEN_AI_IMPROVE_CHANGELOG_REQUEST,
     OPEN_AI_IMPROVE_CHANGELOG_ROLE_DEFINITION,
-    openai } = require('./open_ai');
+    openai,
+} = require('./open_ai');
 
 // Convention commit cannot parse multiple scopes see https://github.com/conventional-changelog/conventional-changelog/issues/232
 // We need to provide better pattern to parse header.

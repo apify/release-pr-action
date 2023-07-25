@@ -38758,7 +38758,8 @@ const commitParser = __nccwpck_require__(1655);
 const {
     OPEN_AI_IMPROVE_CHANGELOG_REQUEST,
     OPEN_AI_IMPROVE_CHANGELOG_ROLE_DEFINITION,
-    openai } = __nccwpck_require__(7315);
+    openai,
+} = __nccwpck_require__(7315);
 
 // Convention commit cannot parse multiple scopes see https://github.com/conventional-changelog/conventional-changelog/issues/232
 // We need to provide better pattern to parse header.
