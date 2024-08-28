@@ -23,9 +23,9 @@ jobs:
       - name: Test Release pull request action
         uses: ./
         with:
-          github-token: ${{ secrets.githubToken }}
+          github-token: ${{ secrets.REPO_ACCESS_GITHUB_TOKEN }}
           changelog-scopes: '{ "Action": ["action"] }'
           base-branch: 'main'
           create-release-pull-request: true
           changelog-method: commits_compare
-          open-ai-token: ${{ secrets.openAiToken }}
+          open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
