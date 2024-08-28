@@ -18,6 +18,7 @@ jobs:
           node-version: '16' # Should correspond to .nvmrc
 
       - name: Test Release pull request action
+        id: test-action
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -27,4 +28,7 @@ jobs:
           changelog-method: commits_compare
           open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
           release-name-method: 'tag'
-          slack-token: ${{ secrets.slackToken }}
+          slack-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+
+      - name: Print changelog
+        run: echo "${{ steps.test-action.outputs.github-changelog }}"
