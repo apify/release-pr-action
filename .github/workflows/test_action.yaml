@@ -22,7 +22,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           changelog-scopes: '{ "Action": ["action"] }'
           base-branch: 'main'
-          create-release-pull-request: true
+          create-release-pull-request: false
           changelog-method: commits_compare
           open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
           release-name-method: 'tag'
