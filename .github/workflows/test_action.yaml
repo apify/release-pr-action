@@ -4,10 +4,6 @@ on:
   pull_request:
     branches: [ main ]
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test-release-pr-action:
     runs-on: ubuntu-latest
