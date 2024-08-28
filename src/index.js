@@ -121,7 +121,7 @@ async function run() {
         headBranch,
     );
 
-    core.info(`Got Slack token: ${slackToken}`);
+    core.info(`Got Slack token length: ${slackToken.length}`);
 
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
