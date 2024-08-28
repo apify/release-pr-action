@@ -28,7 +28,7 @@ jobs:
           changelog-method: commits_compare
           open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
           release-name-method: 'tag'
-          slack-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+          slack-token: ${{ secrets.SLACK_APP_APIFY_REPORTER_TOKEN }}
 
       - name: Print changelog
         run: echo "${{ steps.test-action.outputs.github-changelog }}"
