@@ -19,7 +19,7 @@ jobs:
       - name: Test Release pull request action
         uses: ./
         with:
-          github-token: ${{ github.TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           changelog-scopes: '{ "Action": ["action"] }'
           base-branch: 'main'
           create-release-pull-request: true
