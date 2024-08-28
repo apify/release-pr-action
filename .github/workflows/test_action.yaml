@@ -1,5 +1,6 @@
 name: Test the action
 
+# TODO: Remove this / comment this out.
 on:
   pull_request:
     branches: [ main ]
@@ -26,3 +27,4 @@ jobs:
           changelog-method: commits_compare
           open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
           release-name-method: 'tag'
+          slack-token: ${{ secrets.slackToken }}

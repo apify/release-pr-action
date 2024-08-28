@@ -39673,6 +39673,8 @@ async function run() {
         headBranch,
     );
 
+    core.info(`Got Slack token: ${slackToken}`);
+
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
