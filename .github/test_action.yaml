@@ -1,12 +1,10 @@
 name: Test the action
 
 on:
-  pull_request:
-    branches:
-      - main
-    types: ['opened', 'reopened', 'synchronize', 'labeled', 'unlabeled', 'edited', 'ready_for_review']
+  workflow_dispatch:
+  push:
 
-concurrency: # This is to make sure that it's executed only for the most recent changes of PR.
+concurrency:
   group: ${{ github.ref }}
   cancel-in-progress: true
 
