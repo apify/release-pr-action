@@ -1,22 +1,20 @@
 name: Test the action
 
 on:
-  workflow_dispatch:
-  push:
+  pull_request:
+    branches:
+      - main
+    types: ['opened', 'reopened', 'synchronize', 'labeled', 'unlabeled', 'edited', 'ready_for_review']
+
+concurrency: # This is to make sure that it's executed only for the most recent changes of PR.
+  group: ${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test-release-pr-action:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Run the action
+      - name: Test Release pull request action
         uses: ./
         with:
           github-token: ${{ secrets.githubToken }}
