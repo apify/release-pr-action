@@ -12,6 +12,14 @@ jobs:
   test-release-pr-action:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16' # Should correspond to .nvmrc
+
       - name: Test Release pull request action
         uses: ./
         with:
