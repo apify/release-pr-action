@@ -1,0 +1,27 @@
+name: Test the action
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  test-release-pr-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Run the action
+        uses: ./
+        with:
+          github-token: ${{ secrets.githubToken }}
+          changelog-scopes: '{ "Action": ["action"] }'
+          base-branch: 'main'
+          create-release-pull-request: true
+          changelog-method: commits_compare
+          open-ai-token: ${{ secrets.openAiToken }}
