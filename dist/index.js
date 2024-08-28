@@ -39554,6 +39554,7 @@ const fs = __nccwpck_require__(3292);
 
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
+const { WebClient } = __nccwpck_require__(431);
 
 const {
     createOrUpdatePullRequest,
@@ -39673,7 +39674,10 @@ async function run() {
         headBranch,
     );
 
-    core.info(`Got Slack token length: ${slackToken.length}`);
+    core.info(`Trying to fetch Slack users`);
+    const slack = new WebClient(slackToken);
+    const { members } = await slack.users.list({});
+    core.info(`Slack users: ${members.map((member) => member.profile?.email).join(', ')}`);
 
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
