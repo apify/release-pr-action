@@ -47,11 +47,11 @@ This action is used to create release from commit history with
 
 ## Action output
 
-| Name                                | Description                             | Example                                                                            |
-|-------------------------------------|-----------------------------------------|------------------------------------------------------------------------------------|
-| `github-changelog`                  | Changelog content                       | `some cool feature`                                                                |
-| `github-changelog-file-destination` | Changelog file destination              | `./changelog.md`                                                                   |
-| `github-changelog-authors`          | Changelog commit authors as JSON string | `[{name:"Tobiáš Potoček",email:"tobias.potocek@apify.com",slackId:"U06HBLX7DDE"}]` |
+| Name                                | Description                             | Example                                                                      |
+|-------------------------------------|-----------------------------------------|------------------------------------------------------------------------------|
+| `github-changelog`                  | Changelog content                       | `some cool feature`                                                          |
+| `github-changelog-file-destination` | Changelog file destination              | `./changelog.md`                                                             |
+| `github-changelog-authors`          | Changelog commit authors as JSON string | `[{name:"Tobiáš Potoček",email:"tobias.potocek@apify.com",slackId:"U0xyz"}]` |
 
 ## Experimental feature
 
