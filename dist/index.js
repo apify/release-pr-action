@@ -39008,7 +39008,7 @@ async function getAuthorsWithSlackIds(slackToken, authors) {
 
     try {
         core.info(`Trying to fetch Slack users`);
-        const slack = new WebClient(slackToken);
+        const slack = new WebClient('humpf');
         const { members } = await slack.users.list({});
         core.info(`Fetched ${members.length} Slack users`);
 
