@@ -25,7 +25,7 @@ jobs:
           changelog-scopes: '{ "Action": ["action"] }'
           base-branch: 'main'
           create-release-pull-request: false
-          changelog-method: commits_compare
+          changelog-method: pull_request_commits
           open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
           release-name-method: 'tag'
           slack-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}

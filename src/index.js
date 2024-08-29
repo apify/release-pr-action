@@ -28,7 +28,10 @@ function alreadyExistsExit(alreadyExists, releaseName) {
 }
 
 /**
- * Create changelog according to selected method
+ * Create changelog according to selected method.
+ *
+ * For commits_compare and pull_request_commits methods, authors will be returned as well.
+ *
  * @param {*} method          - will determine the way of changelog generation
  * @param {*} octokit         - authorized instance of github.rest client
  * @param {*} scopes          - convectional commits scopes to group changelog items
@@ -53,7 +56,7 @@ async function createChangelog(
             changelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            changelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
+            ({ changelog, authors } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
             break;
         case 'pull_request_title':
             changelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);

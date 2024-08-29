@@ -67,7 +67,7 @@ async function createOrUpdatePullRequest(octokit, options) {
  * Read pull request's description, parses changelog out of it.
  * @param {*} octokit - authorized instance of github.rest client
  * @param {*} context - github action context
- * @returns {string}
+ * @returns {Promise<string>}
  */
 async function getChangelogFromPullRequestDescription(octokit, context) {
     const pullNumber = context.payload.pull_request.number;
@@ -90,9 +90,12 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
  * @param {*} octokit - authorized instance of github.rest client
  * @param {*} scopes  - convectional commits scopes to group changelog items
  * @param {*} context - github action context
- * @returns {string}
+ * @returns {Promise<object>}
  */
 async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
+    const commitMessages = [];
+    const authors = new Map();
+
     const pullNumber = context.payload.pull_request.number;
     core.info(`Fetching changelog from pull request's commits. Pull request number: ${pullNumber}`);
     const commits = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/commits', {
@@ -100,9 +103,17 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
         pull_number: pullNumber,
     });
     if (!commits) throw new Error('Pull request has no commits!');
-    const commitMessages = commits.map((commit) => commit.commit.message);
-    if (!commitMessages) throw new Error('Could not parse commit messages!');
-    return prepareChangeLog(commitMessages, scopes);
+
+    for (const commit of commits) {
+        const { message, author } = commit.commit;
+        commitMessages.push(message);
+        authors.set(author.email, author); // We want each author only once
+    }
+
+    return {
+        changelog: await prepareChangeLog(commitMessages, scopes),
+        authors: Array.from(authors.values()),
+    };
 }
 
 async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
@@ -133,6 +144,7 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
         ...context.repo,
         basehead: `${baseBranch}...${headBranch}`,
     });
+
     for (const page of compareResponse) {
         for (const commit of page.commits) {
             const { message, author } = commit.commit;
@@ -140,9 +152,11 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
             authors.set(author.email, author); // We want each author only once
         }
     }
+
     if (!commitMessages || commitMessages.length === 0) {
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
+
     return {
         changelog: await prepareChangeLog(commitMessages, scopes),
         authors: Array.from(authors.values()),
