@@ -39008,7 +39008,7 @@ async function getAuthorsWithSlackIds(slackToken, authors) {
 
     try {
         core.info(`Trying to fetch Slack users`);
-        const slack = new WebClient('humpf');
+        const slack = new WebClient(slackToken);
         const { members } = await slack.users.list({});
         core.info(`Fetched ${members.length} Slack users`);
 
@@ -39032,7 +39032,7 @@ async function getAuthorsWithSlackIds(slackToken, authors) {
         });
     } catch (e) {
         // Let's not kill the whole action.
-        core.warning(`Failed getting authors with Slack IDs: ${JSON.stringify(e)}`);
+        core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
         return authors;
     }
 }

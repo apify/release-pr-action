@@ -1,6 +1,5 @@
 name: Test the action
 
-# TODO: Remove this / comment this out.
 on:
   pull_request:
     branches: [ main ]
