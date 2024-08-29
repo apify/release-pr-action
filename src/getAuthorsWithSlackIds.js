@@ -11,6 +11,11 @@ const { WebClient } = require('@slack/web-api');
  * @returns {Promise<array<{ name: string, email: string, slackId?: string }>>}
  */
 async function getAuthorsWithSlackIds(slackToken, authors) {
+    if (!authors.length) {
+        core.info('No authors to fetch Slack IDs for');
+        return authors;
+    }
+
     try {
         core.info(`Trying to fetch Slack users`);
         const slack = new WebClient(slackToken);
@@ -36,6 +41,7 @@ async function getAuthorsWithSlackIds(slackToken, authors) {
             return { ...author, slackId };
         });
     } catch (e) {
+        // Let's not kill the whole action.
         core.warning(`Failed getting authors with Slack IDs: ${JSON.stringify(e)}`);
         return authors;
     }
