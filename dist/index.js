@@ -38985,6 +38985,59 @@ module.exports = {
 
 /***/ }),
 
+/***/ 169:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const core = __nccwpck_require__(2186);
+const { WebClient } = __nccwpck_require__(431);
+
+/**
+ * Enhance authors with Slack IDs matching their email addresses.
+ *
+ * If the whole function fails, or some emails cannot be matched, the original authors are returned.
+ *
+ * @param {string} slackToken
+ * @param {array<{ name: string, email: string }>} authors
+ * @returns {Promise<array<{ name: string, email: string, slackId?: string }>>}
+ */
+async function getAuthorsWithSlackIds(slackToken, authors) {
+    try {
+        core.info(`Trying to fetch Slack users`);
+        const slack = new WebClient(slackToken);
+        const { members } = await slack.users.list({});
+        core.info(`Fetched ${members.length} Slack users`);
+
+        // Create mapping from emails to Slack IDs.
+        const emailToSlackId = members
+            .filter((user) => user.id && user.profile?.email)
+            .reduce((acc, user) => {
+                acc[user.profile.email] = user.id;
+                return acc;
+            }, {});
+
+        return authors.map((author) => {
+            const slackId = emailToSlackId[author.email];
+
+            if (!slackId) {
+                core.warning(`Slack ID not found for ${author.email}`);
+                return author;
+            }
+
+            return { ...author, slackId };
+        });
+    } catch (e) {
+        core.warning(`Failed getting authors with Slack IDs: ${JSON.stringify(e)}`);
+        return authors;
+    }
+}
+
+module.exports = {
+    getAuthorsWithSlackIds,
+};
+
+
+/***/ }),
+
 /***/ 7315:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -39575,8 +39628,8 @@ const fs = __nccwpck_require__(3292);
 
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
-const { WebClient } = __nccwpck_require__(431);
 
+const { getAuthorsWithSlackIds } = __nccwpck_require__(169);
 const {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
@@ -39659,6 +39712,7 @@ async function run() {
     const createGithubRelease = core.getBooleanInput('create-github-release');
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
+    const fetchAuthorSlackIds = core.getInput('fetch-author-slack-ids');
 
     const octokit = github.getOctokit(githubToken);
     const context = {
@@ -39699,14 +39753,6 @@ async function run() {
         headBranch,
     );
 
-    core.info(`Changelog:\n${changelog}`);
-    core.info(`Authors:\n${authors.map((author) => `${author.name} <${author.email}>`).join('\n')}`);
-
-    // core.info(`Trying to fetch Slack users`);
-    // const slack = new WebClient(slackToken);
-    // const { members } = await slack.users.list({});
-    // core.info(`Slack users: ${members.map((member) => member.profile?.email).join(', ')}`);
-
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
@@ -39740,6 +39786,12 @@ async function run() {
         });
     }
 
+    let authorsWithSlackIds;
+    if (fetchAuthorSlackIds) {
+        core.info(`Fetching Slack IDs for changelog authors`);
+        authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
+    }
+
     // Write file to disk, because sometimes it can be easier to read it from file-system,
     // rather than interpolate it in the script, which can cause syntax error.
     // NOTE: This will work only if this action and consumer are executed within one job.
@@ -39747,6 +39799,7 @@ async function run() {
     await fs.writeFile(githubChangelogFileDestination, changelog, 'utf-8');
     core.setOutput('github-changelog', changelog);
     core.setOutput('github-changelog-file-destination', githubChangelogFileDestination);
+    core.setOutput('github-changelog-authors', JSON.stringify(authorsWithSlackIds || authors));
 }
 
 run();

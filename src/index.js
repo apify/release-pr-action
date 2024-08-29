@@ -2,8 +2,8 @@ const fs = require('fs/promises');
 
 const core = require('@actions/core');
 const github = require('@actions/github');
-const { WebClient } = require('@slack/web-api');
 
+const { getAuthorsWithSlackIds } = require('./getAuthorsWithSlackIds');
 const {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
@@ -86,6 +86,7 @@ async function run() {
     const createGithubRelease = core.getBooleanInput('create-github-release');
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
+    const fetchAuthorSlackIds = core.getInput('fetch-author-slack-ids');
 
     const octokit = github.getOctokit(githubToken);
     const context = {
@@ -126,14 +127,6 @@ async function run() {
         headBranch,
     );
 
-    core.info(`Changelog:\n${changelog}`);
-    core.info(`Authors:\n${authors.map((author) => `${author.name} <${author.email}>`).join('\n')}`);
-
-    // core.info(`Trying to fetch Slack users`);
-    // const slack = new WebClient(slackToken);
-    // const { members } = await slack.users.list({});
-    // core.info(`Slack users: ${members.map((member) => member.profile?.email).join(', ')}`);
-
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
@@ -167,6 +160,12 @@ async function run() {
         });
     }
 
+    let authorsWithSlackIds;
+    if (fetchAuthorSlackIds) {
+        core.info(`Fetching Slack IDs for changelog authors`);
+        authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
+    }
+
     // Write file to disk, because sometimes it can be easier to read it from file-system,
     // rather than interpolate it in the script, which can cause syntax error.
     // NOTE: This will work only if this action and consumer are executed within one job.
@@ -174,6 +173,7 @@ async function run() {
     await fs.writeFile(githubChangelogFileDestination, changelog, 'utf-8');
     core.setOutput('github-changelog', changelog);
     core.setOutput('github-changelog-file-destination', githubChangelogFileDestination);
+    core.setOutput('github-changelog-authors', JSON.stringify(authorsWithSlackIds || authors));
 }
 
 run();
