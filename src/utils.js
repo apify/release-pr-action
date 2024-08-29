@@ -123,23 +123,30 @@ async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
  * @param {*} scopes          - convectional commits scopes to group changelog items
- * @returns {string}
+ * @returns {Promise<object>}
  */
 async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes) {
     const commitMessages = [];
+    const authors = new Map();
+
     const compareResponse = await octokit.paginate('/repos/{owner}/{repo}/compare/{basehead}', {
         ...context.repo,
         basehead: `${baseBranch}...${headBranch}`,
     });
     for (const page of compareResponse) {
         for (const commit of page.commits) {
-            commitMessages.push(commit.commit.message);
+            const { message, author } = commit.commit;
+            commitMessages.push(message);
+            authors.set(author.email, author); // We want each author only once
         }
     }
     if (!commitMessages || commitMessages.length === 0) {
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
-    return prepareChangeLog(commitMessages, scopes);
+    return {
+        changelog: prepareChangeLog(commitMessages, scopes),
+        authors: authors.values(),
+    };
 }
 
 /**

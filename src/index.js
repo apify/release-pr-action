@@ -35,7 +35,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {string}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string }> }>}
  */
 async function createChangelog(
     method,
@@ -45,26 +45,27 @@ async function createChangelog(
     baseBranch,
     headBranch,
 ) {
-    let githubChangelog;
+    let changelog;
+    let authors = [];
 
     switch (method) {
         case 'pull_request_description':
-            githubChangelog = await getChangelogFromPullRequestDescription(octokit, context);
+            changelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
+            changelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
             break;
         case 'pull_request_title':
-            githubChangelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
+            changelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
             break;
         case 'commits_compare':
-            githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
+            ({ changelog, authors } = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes));
             break;
         default:
             core.error(`Unrecognized "changelog-method" input: ${method}`);
             break;
     }
-    return githubChangelog;
+    return { changelog, authors };
 }
 
 /**
@@ -113,7 +114,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const githubChangelog = await createChangelog(
+    const { changelog, authors } = await createChangelog(
         changelogMethod,
         octokit,
         scopes,
@@ -122,13 +123,13 @@ async function run() {
         headBranch,
     );
 
-    core.info(`First 8 characters of Slack token: ${slackToken.slice(0, 8)}`);
-    core.info(`Last 4 characters of Slack token: ${slackToken.slice(-4)}`);
+    core.info(`Changelog:\n${changelog}`);
+    core.info(`Authors:\n${authors.map((author) => `${author.name} <${author.email}>`).join('\n')}`);
 
-    core.info(`Trying to fetch Slack users`);
-    const slack = new WebClient(slackToken);
-    const { members } = await slack.users.list({});
-    core.info(`Slack users: ${members.map((member) => member.profile?.email).join(', ')}`);
+    // core.info(`Trying to fetch Slack users`);
+    // const slack = new WebClient(slackToken);
+    // const { members } = await slack.users.list({});
+    // core.info(`Slack users: ${members.map((member) => member.profile?.email).join(', ')}`);
 
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
@@ -137,7 +138,7 @@ async function run() {
             title: `Release ${releaseName}`,
             head: headBranch,
             base: baseBranch,
-            changelog: githubChangelog,
+            changelog,
         });
     }
 
@@ -147,7 +148,7 @@ async function run() {
             tag_name: releaseName,
             name: releaseName,
             target_commitish: baseBranch,
-            body: githubChangelog,
+            body: changelog,
         });
         alreadyExistsExit(releaseAlreadyExists, releaseName);
     }
@@ -157,7 +158,7 @@ async function run() {
         await sendReleaseNotesToSlack(slackToken, {
             channel: slackChannel,
             text: 'Release notes', // This is just fallback for slack api
-            changelog: githubChangelog,
+            changelog,
             repository: context.repository,
             releaseName,
         });
@@ -167,8 +168,8 @@ async function run() {
     // rather than interpolate it in the script, which can cause syntax error.
     // NOTE: This will work only if this action and consumer are executed within one job.
     //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
-    await fs.writeFile(githubChangelogFileDestination, githubChangelog, 'utf-8');
-    core.setOutput('github-changelog', githubChangelog);
+    await fs.writeFile(githubChangelogFileDestination, changelog, 'utf-8');
+    core.setOutput('github-changelog', changelog);
     core.setOutput('github-changelog-file-destination', githubChangelogFileDestination);
 }
 
