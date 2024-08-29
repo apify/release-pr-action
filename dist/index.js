@@ -38828,7 +38828,7 @@ async function structureChangelog(changelogStructure, scopes) {
  * Parse commit messages and convert them into human readable changelog
  * @param {*} gitMessages - commit messages
  * @param {*} scopes      - convectional commits scopes to group changelog items
- * @returns {string}
+ * @returns {Promise<string>}
  */
 async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
@@ -39162,8 +39162,8 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
     return {
-        changelog: prepareChangeLog(commitMessages, scopes),
-        authors: authors.values(),
+        changelog: await prepareChangeLog(commitMessages, scopes),
+        authors: Array.from(authors.values()),
     };
 }
 

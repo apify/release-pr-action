@@ -144,8 +144,8 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
     return {
-        changelog: prepareChangeLog(commitMessages, scopes),
-        authors: authors.values(),
+        changelog: await prepareChangeLog(commitMessages, scopes),
+        authors: Array.from(authors.values()),
     };
 }
 
