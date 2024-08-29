@@ -39674,6 +39674,9 @@ async function run() {
         headBranch,
     );
 
+    core.info(`First 8 characters of Slack token: ${slackToken.slice(0, 8)}`);
+    core.info(`Last 4 characters of Slack token: ${slackToken.slice(-4)}`);
+
     core.info(`Trying to fetch Slack users`);
     const slack = new WebClient(slackToken);
     const { members } = await slack.users.list({});
