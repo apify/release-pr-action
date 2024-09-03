@@ -39782,6 +39782,10 @@ async function run() {
     }
 
     if (slackChannel) {
+        if (!slackToken) {
+            throw new Error('Slack token is required for sending release notes to Slack');
+        }
+
         core.info(`Sending release notes to ${slackChannel} slack channel`);
         await sendReleaseNotesToSlack(slackToken, {
             channel: slackChannel,
@@ -39794,6 +39798,10 @@ async function run() {
 
     let authorsWithSlackIds;
     if (fetchAuthorSlackIds) {
+        if (!slackToken) {
+            throw new Error('Slack token is required to fetch author Slack IDs');
+        }
+
         core.info(`Fetching Slack IDs for changelog authors`);
         authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
     }
