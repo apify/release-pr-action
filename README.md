@@ -19,7 +19,7 @@ This action is used to create release from commit history with
 | `github-token`                      | Github token with repository scope permissions                                  | `${{ secrets.GITHUB_TOKEN }}` | NO DEFAULT     | yes      |
 | `changelog-scopes`                  | Scopes, that will be show in changelog                                          | `{"Worker": ["worker"]}`      | NO DEFAULT     | yes      |
 | `changelog-method`                  | Source from which to create changelog                                           | `pull_request_description`    | NO DEFAULT     | yes      |
-| `slack-token`                       | Slack token with `chat.postMessage` permissions                                 | `${{ secrets.SLACK_TOKEN }}`  | NO DEFAULT     | no       |
+| `slack-token`                       | Slack token with sufficient permissions                                         | `${{ secrets.SLACK_TOKEN }}`  | NO DEFAULT     | no       |
 | `slack-channel`                     | Slack channel ID                                                                | `XXXXXX`                      | NO DEFAULT     | no       |
 | `release-name-method`               | Whether to fetch release name from branch name or bump minor of last release    | `branch`                      | `branch`       | no       |
 | `create-release-pull-request`       | Whether to create release pull request                                          | `true`                        | `false`        | no       |
@@ -30,6 +30,9 @@ This action is used to create release from commit history with
 | `open-ai-token`                     | Experimental feature see section [experimental feature](#experimental-feature). | `token`                       | NO_DEFAULT     | no       |
 | `fetch-author-slack-ids`            | Fetch Slack IDs of commit authors in the changelog                              | `true`                        | `false`        | no       |
 
+The Slack token needs the following permissions:
+
+
 ### Input details
 
 * `changelog-method` can be one of:
@@ -39,7 +42,8 @@ This action is used to create release from commit history with
   * `pull_request_title`       - Changelog will be taken from pull request's title (for `pull_request` trigger)
   * `commits_compare`          - Changelog will taken from comparison of commit messages between 2 branches
 
-* both `slack-token` and `slack-channel` must be set to send message to slack
+* both `slack-token` and `slack-channel` must be set to send message to Slack (plus the token needs `chat.postMessage` scope)
+* `slack-token` is required to fetch user Slack IDs (plus the token needs `users:read` and `users:read.email` scopes)
 * `release-name-method` can be on of:
   * `branch` - parse release name from branch name (i.e. `release/v1.2.3` -> `v.1.2.3`)
   * `tag`    - parse release name from latest and bump minor (i.e. `v1.2.3` -> `v.1.3.3`)
