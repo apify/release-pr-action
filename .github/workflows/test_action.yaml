@@ -28,7 +28,7 @@ jobs:
           open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
           release-name-method: 'tag'
           slack-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          fetch-author-slack-ids: true
+          # fetch-author-slack-ids: true
 
       - name: Print changelog
         run: echo "${{ steps.test-action.outputs.github-changelog }}"

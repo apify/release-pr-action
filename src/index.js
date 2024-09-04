@@ -165,6 +165,7 @@ async function run() {
     }
 
     let authorsWithSlackIds;
+    core.info(`FetchAuthorSlaciIds: ${fetchAuthorSlackIds}`);
     if (fetchAuthorSlackIds) {
         if (!slackToken) {
             throw new Error('Slack token is required to fetch author Slack IDs');
