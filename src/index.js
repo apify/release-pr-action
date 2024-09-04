@@ -86,7 +86,7 @@ async function run() {
     const createGithubRelease = core.getBooleanInput('create-github-release');
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
-    const fetchAuthorSlackIds = core.getInput('fetch-author-slack-ids');
+    const fetchAuthorSlackIds = core.getBooleanInput('fetch-author-slack-ids');
 
     const octokit = github.getOctokit(githubToken);
     const context = {
