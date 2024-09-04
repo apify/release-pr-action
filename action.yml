@@ -43,11 +43,17 @@ inputs:
   open-ai-token:
     required: false
     description: 'Experimental feature: OpenAI token for improving changelog using text model'
+  fetch-author-slack-ids:
+    required: false
+    default: false
+    description: 'Fetch Slack IDs of commit authors in the changelog'
 outputs:
   github-changelog:
     description: 'Changelog content in GihHub markdown'
   github-changelog-file-destination:
     description: 'Path to Github changelog file stored in file-system'
+  github-changelog-authors:
+    description: 'List of commit authors in the changelog as a JSON string. If fetch-author-slack-ids is set to true, the action will try to fetch a matching Slack ID for each author.'
 runs:
   using: 'node16'
   main: 'dist/index.js'

@@ -74,7 +74,7 @@ async function structureChangelog(changelogStructure, scopes) {
  * Parse commit messages and convert them into human readable changelog
  * @param {*} gitMessages - commit messages
  * @param {*} scopes      - convectional commits scopes to group changelog items
- * @returns {string}
+ * @returns {Promise<string>}
  */
 async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');

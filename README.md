@@ -14,20 +14,22 @@ This action is used to create release from commit history with
 
 ## Action input
 
-| Name                                | Description                                                                    | Example                         | Default        | Required |
-|-------------------------------------|--------------------------------------------------------------------------------|---------------------------------|----------------|----------|
-| `github-token`                      | Github token with repository scope permissions                                 | `${{ secrets.GITHUB_TOKEN }}`   | NO DEFAULT     | yes      |
-| `changelog-scopes`                  | Scopes, that will be show in changelog                                         | `{"Worker": ["worker"]}`        | NO DEFAULT     | yes      |
-| `changelog-method`                  | Source from which to create changelog                                          | `pull_request_description`      | NO DEFAULT     | yes      |
-| `slack-token`                       | Slack token with `chat.postMessage` permissions                                | `${{ secrets.SLACK_TOKEN }}`    | NO DEFAULT     | no       |
-| `slack-channel`                     | Slack channel ID                                                               | `XXXXXX`                        | NO DEFAULT     | no       |
-| `release-name-method`               | Whether to fetch release name from branch name or bump minor of last release   | `branch`                        | `branch`       | no       |
-| `create-release-pull-request`       | Whether to create release pull request                                         | `true`                          | `false`        | no       |
-| `create-github-release      `       | Whether to create github release                                               | `true`                          | `false`        | no       |
-| `base-branch`                       | Based branch where pull request will be created                                | `master`                        | `master`       | no       |
-| `release-name-prefix`               | Prepend prefix to release name (version)                                       | `v`                             | `v`            | no       |
-| `github-changelog-file-destination` | Where to store github changelog on filesystem                                  | `github_changelog.md`           | `changelog.md` | no       |
-| `open-ai-token`                     | Experimental feature see section [experimental feature](#experimental-feature).| `token`                         | NO_DEFAULT     | no       |
+| Name                                | Description                                                                     | Example                       | Default        | Required |
+|-------------------------------------|---------------------------------------------------------------------------------|-------------------------------|----------------|----------|
+| `github-token`                      | Github token with repository scope permissions                                  | `${{ secrets.GITHUB_TOKEN }}` | NO DEFAULT     | yes      |
+| `changelog-scopes`                  | Scopes, that will be show in changelog                                          | `{"Worker": ["worker"]}`      | NO DEFAULT     | yes      |
+| `changelog-method`                  | Source from which to create changelog                                           | `pull_request_description`    | NO DEFAULT     | yes      |
+| `slack-token`                       | Slack token with sufficient scopes                                              | `${{ secrets.SLACK_TOKEN }}`  | NO DEFAULT     | no       |
+| `slack-channel`                     | Slack channel ID                                                                | `XXXXXX`                      | NO DEFAULT     | no       |
+| `release-name-method`               | Whether to fetch release name from branch name or bump minor of last release    | `branch`                      | `branch`       | no       |
+| `create-release-pull-request`       | Whether to create release pull request                                          | `true`                        | `false`        | no       |
+| `create-github-release      `       | Whether to create github release                                                | `true`                        | `false`        | no       |
+| `base-branch`                       | Based branch where pull request will be created                                 | `master`                      | `master`       | no       |
+| `release-name-prefix`               | Prepend prefix to release name (version)                                        | `v`                           | `v`            | no       |
+| `github-changelog-file-destination` | Where to store github changelog on filesystem                                   | `github_changelog.md`         | `changelog.md` | no       |
+| `open-ai-token`                     | Experimental feature see section [experimental feature](#experimental-feature). | `token`                       | NO_DEFAULT     | no       |
+| `fetch-author-slack-ids`            | Fetch Slack IDs of commit authors in the changelog                              | `true`                        | `false`        | no       |
+
 
 ### Input details
 
@@ -38,7 +40,8 @@ This action is used to create release from commit history with
   * `pull_request_title`       - Changelog will be taken from pull request's title (for `pull_request` trigger)
   * `commits_compare`          - Changelog will taken from comparison of commit messages between 2 branches
 
-* both `slack-token` and `slack-channel` must be set to send message to slack
+* both `slack-token` and `slack-channel` must be set to send message to Slack (plus the token needs `chat.postMessage` scope)
+* `slack-token` must be set to fetch user Slack IDs (plus the token needs `users:read` and `users:read.email` scopes)
 * `release-name-method` can be on of:
   * `branch` - parse release name from branch name (i.e. `release/v1.2.3` -> `v.1.2.3`)
   * `tag`    - parse release name from latest and bump minor (i.e. `v1.2.3` -> `v.1.3.3`)
@@ -46,10 +49,11 @@ This action is used to create release from commit history with
 
 ## Action output
 
-| Name                                | Description                 | Example             |
-| ----------------------------------- | --------------------------- | ------------------- |
-| `github-changelog`                  | Changelog content           | `some cool feature` |
-| `github-changelog-file-destination` | Changelog file destionation | `./changelog.md`    |
+| Name                                | Description                             | Example                                                                      |
+|-------------------------------------|-----------------------------------------|------------------------------------------------------------------------------|
+| `github-changelog`                  | Changelog content                       | `some cool feature`                                                          |
+| `github-changelog-file-destination` | Changelog file destination              | `./changelog.md`                                                             |
+| `github-changelog-authors`          | Changelog commit authors as JSON string | `[{name:"Tobiáš Potoček",email:"tobias.potocek@apify.com",slackId:"U0xyz"}]` |
 
 ## Experimental feature
 
@@ -108,9 +112,43 @@ jobs:
 
 ## Contribution
 
-1. Run `fnm use` (or `nvm`, or any other node manager you use)
-2. Update code in `./src`
-3. Run `npm i`
-4. Run `npm run all`
-5. Commit all changes including `./dist` folder with built code.
-6. Publish a new version of action using new release (It needs to be done manually)
+Developing Github Actions is tricky. You have essentially two options:
+
+1. Use something like [`act`](https://github.com/nektos/act) to run actions and workflows locally.
+2. Push changes to GitHub and let it run there.
+
+For the second option, this repo contains a [test workflow](./.github/workflows/test_action.yaml) that will run the
+`release-pr-action` on every PR push. As the action will run on your actual PR, `create-release-pull-request` is by
+default `false` so that it doesn't override your PR title and description.
+
+Note that you need to **manually build the code and commit the `dist` folder with the built code**.
+
+### Local setup
+
+1. Run `fnm use` (or `nvm`, or any other node manager you use).
+2. Run `npm install`.
+3. Run `npm run watch`.
+
+### Development workflow
+
+1. Update code in `./src`.
+2. Wait for build to finish.
+3. Commit all changes including `./dist` folder.
+4. Push changes to GitHub.
+5. Observe the action results.
+6. Repeat.
+
+Feel free to change the [test workflow](./.github/workflows/test_action.yaml) to suit your needs, but before merging
+make sure it's configured with some reasonable defaults that will work for the next person making changes.
+
+**Tip:** To avoid constantly switching to GitHub UI, you can use an IDE integration, such
+as [GitHub Actions Manager](https://plugins.jetbrains.com/plugin/19347-github-actions-manager) for
+WebStorm, or [GitHub Actions](https://marketplace.visualstudio.com/items?itemName=GitHub.vscode-github-actions) for
+VSCode.
+
+### Submit changes
+
+1. If needed, run `npm run build` and commit and push any remaining changes.
+2. Run `npm run test`.
+3. Merge the PR.
+4. Publish a new version of action using new release (It needs to be done manually).

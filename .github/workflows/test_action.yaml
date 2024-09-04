@@ -1,0 +1,37 @@
+name: Test the action
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-release-pr-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16' # Should correspond to .nvmrc
+
+      - name: Test Release pull request action
+        id: test-action
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          changelog-scopes: '{ "Action": ["action"] }'
+          base-branch: 'main'
+          create-release-pull-request: false
+          changelog-method: pull_request_commits
+          open-ai-token: ${{ secrets.OPEN_AI_TOKEN }}
+          release-name-method: 'tag'
+          slack-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
+          fetch-author-slack-ids: true
+
+      - name: Print changelog
+        run: echo "${{ steps.test-action.outputs.github-changelog }}"
+
+      - name: Print authors
+        run: echo "${{ steps.test-action.outputs.github-changelog-authors }}"

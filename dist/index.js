@@ -38828,7 +38828,7 @@ async function structureChangelog(changelogStructure, scopes) {
  * Parse commit messages and convert them into human readable changelog
  * @param {*} gitMessages - commit messages
  * @param {*} scopes      - convectional commits scopes to group changelog items
- * @returns {string}
+ * @returns {Promise<string>}
  */
 async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
@@ -38985,6 +38985,65 @@ module.exports = {
 
 /***/ }),
 
+/***/ 169:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const core = __nccwpck_require__(2186);
+const { WebClient } = __nccwpck_require__(431);
+
+/**
+ * Enhance authors with Slack IDs matching their email addresses.
+ *
+ * If the whole function fails, or some emails cannot be matched, the original authors are returned.
+ *
+ * @param {string} slackToken
+ * @param {array<{ name: string, email: string }>} authors
+ * @returns {Promise<array<{ name: string, email: string, slackId?: string }>>}
+ */
+async function getAuthorsWithSlackIds(slackToken, authors) {
+    if (!authors.length) {
+        core.info('No authors to fetch Slack IDs for');
+        return authors;
+    }
+
+    try {
+        core.info(`Trying to fetch Slack users`);
+        const slack = new WebClient(slackToken);
+        const { members } = await slack.users.list({});
+        core.info(`Fetched ${members.length} Slack users`);
+
+        // Create mapping from emails to Slack IDs.
+        const emailToSlackId = members
+            .filter((user) => user.id && user.profile?.email)
+            .reduce((acc, user) => {
+                acc[user.profile.email] = user.id;
+                return acc;
+            }, {});
+
+        return authors.map((author) => {
+            const slackId = emailToSlackId[author.email];
+
+            if (!slackId) {
+                core.warning(`Slack ID not found for ${author.email}`);
+                return author;
+            }
+
+            return { ...author, slackId };
+        });
+    } catch (e) {
+        // Let's not kill the whole action.
+        core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
+        return authors;
+    }
+}
+
+module.exports = {
+    getAuthorsWithSlackIds,
+};
+
+
+/***/ }),
+
 /***/ 7315:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
@@ -39085,7 +39144,7 @@ async function createOrUpdatePullRequest(octokit, options) {
  * Read pull request's description, parses changelog out of it.
  * @param {*} octokit - authorized instance of github.rest client
  * @param {*} context - github action context
- * @returns {string}
+ * @returns {Promise<string>}
  */
 async function getChangelogFromPullRequestDescription(octokit, context) {
     const pullNumber = context.payload.pull_request.number;
@@ -39108,9 +39167,12 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
  * @param {*} octokit - authorized instance of github.rest client
  * @param {*} scopes  - convectional commits scopes to group changelog items
  * @param {*} context - github action context
- * @returns {string}
+ * @returns {Promise<object>}
  */
 async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
+    const commitMessages = [];
+    const authors = new Map();
+
     const pullNumber = context.payload.pull_request.number;
     core.info(`Fetching changelog from pull request's commits. Pull request number: ${pullNumber}`);
     const commits = await octokit.paginate('GET /repos/{owner}/{repo}/pulls/{pull_number}/commits', {
@@ -39118,9 +39180,17 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
         pull_number: pullNumber,
     });
     if (!commits) throw new Error('Pull request has no commits!');
-    const commitMessages = commits.map((commit) => commit.commit.message);
-    if (!commitMessages) throw new Error('Could not parse commit messages!');
-    return prepareChangeLog(commitMessages, scopes);
+
+    for (const commit of commits) {
+        const { message, author } = commit.commit;
+        commitMessages.push(message);
+        authors.set(author.email, author); // We want each author only once
+    }
+
+    return {
+        changelog: await prepareChangeLog(commitMessages, scopes),
+        authors: Array.from(authors.values()),
+    };
 }
 
 async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
@@ -39141,23 +39211,33 @@ async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
  * @param {*} scopes          - convectional commits scopes to group changelog items
- * @returns {string}
+ * @returns {Promise<object>}
  */
 async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes) {
     const commitMessages = [];
+    const authors = new Map();
+
     const compareResponse = await octokit.paginate('/repos/{owner}/{repo}/compare/{basehead}', {
         ...context.repo,
         basehead: `${baseBranch}...${headBranch}`,
     });
+
     for (const page of compareResponse) {
         for (const commit of page.commits) {
-            commitMessages.push(commit.commit.message);
+            const { message, author } = commit.commit;
+            commitMessages.push(message);
+            authors.set(author.email, author); // We want each author only once
         }
     }
+
     if (!commitMessages || commitMessages.length === 0) {
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
-    return prepareChangeLog(commitMessages, scopes);
+
+    return {
+        changelog: await prepareChangeLog(commitMessages, scopes),
+        authors: Array.from(authors.values()),
+    };
 }
 
 /**
@@ -39555,6 +39635,7 @@ const fs = __nccwpck_require__(3292);
 const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 
+const { getAuthorsWithSlackIds } = __nccwpck_require__(169);
 const {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
@@ -39579,14 +39660,17 @@ function alreadyExistsExit(alreadyExists, releaseName) {
 }
 
 /**
- * Create changelog according to selected method
+ * Create changelog according to selected method.
+ *
+ * For commits_compare and pull_request_commits methods, authors will be returned as well.
+ *
  * @param {*} method          - will determine the way of changelog generation
  * @param {*} octokit         - authorized instance of github.rest client
  * @param {*} scopes          - convectional commits scopes to group changelog items
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {string}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string }> }>}
  */
 async function createChangelog(
     method,
@@ -39596,26 +39680,27 @@ async function createChangelog(
     baseBranch,
     headBranch,
 ) {
-    let githubChangelog;
+    let changelog;
+    let authors = [];
 
     switch (method) {
         case 'pull_request_description':
-            githubChangelog = await getChangelogFromPullRequestDescription(octokit, context);
+            changelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            githubChangelog = await getChangelogFromPullRequestCommits(octokit, scopes, context);
+            ({ changelog, authors } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
             break;
         case 'pull_request_title':
-            githubChangelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
+            changelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
             break;
         case 'commits_compare':
-            githubChangelog = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes);
+            ({ changelog, authors } = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes));
             break;
         default:
             core.error(`Unrecognized "changelog-method" input: ${method}`);
             break;
     }
-    return githubChangelog;
+    return { changelog, authors };
 }
 
 /**
@@ -39633,6 +39718,7 @@ async function run() {
     const createGithubRelease = core.getBooleanInput('create-github-release');
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
+    const fetchAuthorSlackIds = core.getInput('fetch-author-slack-ids');
 
     const octokit = github.getOctokit(githubToken);
     const context = {
@@ -39664,7 +39750,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const githubChangelog = await createChangelog(
+    const { changelog, authors } = await createChangelog(
         changelogMethod,
         octokit,
         scopes,
@@ -39680,7 +39766,7 @@ async function run() {
             title: `Release ${releaseName}`,
             head: headBranch,
             base: baseBranch,
-            changelog: githubChangelog,
+            changelog,
         });
     }
 
@@ -39690,29 +39776,44 @@ async function run() {
             tag_name: releaseName,
             name: releaseName,
             target_commitish: baseBranch,
-            body: githubChangelog,
+            body: changelog,
         });
         alreadyExistsExit(releaseAlreadyExists, releaseName);
     }
 
     if (slackChannel) {
+        if (!slackToken) {
+            throw new Error('Slack token is required for sending release notes to Slack');
+        }
+
         core.info(`Sending release notes to ${slackChannel} slack channel`);
         await sendReleaseNotesToSlack(slackToken, {
             channel: slackChannel,
             text: 'Release notes', // This is just fallback for slack api
-            changelog: githubChangelog,
+            changelog,
             repository: context.repository,
             releaseName,
         });
+    }
+
+    let authorsWithSlackIds;
+    if (fetchAuthorSlackIds) {
+        if (!slackToken) {
+            throw new Error('Slack token is required to fetch author Slack IDs');
+        }
+
+        core.info(`Fetching Slack IDs for changelog authors`);
+        authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,
     // rather than interpolate it in the script, which can cause syntax error.
     // NOTE: This will work only if this action and consumer are executed within one job.
     //       For preserving the changelog between jobs, changelog file must be uploaded as artefact.
-    await fs.writeFile(githubChangelogFileDestination, githubChangelog, 'utf-8');
-    core.setOutput('github-changelog', githubChangelog);
+    await fs.writeFile(githubChangelogFileDestination, changelog, 'utf-8');
+    core.setOutput('github-changelog', changelog);
     core.setOutput('github-changelog-file-destination', githubChangelogFileDestination);
+    core.setOutput('github-changelog-authors', JSON.stringify(authorsWithSlackIds || authors));
 }
 
 run();
