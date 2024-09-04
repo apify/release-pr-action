@@ -49,7 +49,7 @@ async function createOrUpdatePullRequest(octokit, options) {
     const { data: pulls } = await octokit.rest.pulls.list({
         owner,
         repo,
-        head,
+        head: `${owner}:${head}`,
         base,
         state: 'open',
     });
