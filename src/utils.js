@@ -49,6 +49,7 @@ async function createOrUpdatePullRequest(octokit, options) {
     const { data: pulls } = await octokit.rest.pulls.list({
         owner,
         repo,
+        // When listing PRs, it is necessary to prefix head with the owner for the request to work correctly.
         head: `${owner}:${head}`,
         base,
         state: 'open',
