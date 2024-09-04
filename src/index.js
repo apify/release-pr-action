@@ -127,6 +127,7 @@ async function run() {
         headBranch,
     );
 
+    core.info(`Create Pr: ${createReleasePullRequest} ${typeof createReleasePullRequest}`);
     if (createReleasePullRequest) {
         core.info('Opening the release pull request');
         await createOrUpdatePullRequest(octokit, {
@@ -165,7 +166,7 @@ async function run() {
     }
 
     let authorsWithSlackIds;
-    core.info(`FetchAuthorSlaciIds: ${fetchAuthorSlackIds}`);
+    core.info(`FetchAuthorSlaciIds: ${fetchAuthorSlackIds} ${typeof fetchAuthorSlackIds}`);
     if (fetchAuthorSlackIds) {
         if (!slackToken) {
             throw new Error('Slack token is required to fetch author Slack IDs');
