@@ -199,7 +199,7 @@ async function prepareChangeLog(gitMessages, scopes) {
 async function improveChangeLog(changeList) {
     if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
     const completion = await openai.createChatCompletion({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
         messages: [
             {
                 role: 'system',
