@@ -171,7 +171,7 @@ async function run() {
         }
 
         core.info(`Fetching Slack IDs for changelog authors`);
-        authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
+        authorsWithSlackIds = await getAuthorsWithSlackIds(githubToken, slackToken, authors);
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,
