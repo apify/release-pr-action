@@ -39026,7 +39026,7 @@ async function getGitHubUsernameToEmailMap(githubToken) {
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
-            Authorization: `bearer ${process.env.GITHUB_TOKEN}`,
+            Authorization: `bearer ${githubToken}`,
         },
         body: JSON.stringify({ query }),
     });
