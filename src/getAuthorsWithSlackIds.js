@@ -18,7 +18,7 @@ async function getEmailToSlackIdMap(slackToken) {
 
 async function getGitHubUsernameToEmailMap(githubToken) {
     const query = '{\n'
-        + '  repository(name: "apify-core", owner: "apify") {\n'
+        + '  repository(name: "release-pr-action", owner: "apify") {\n'
         + '    collaborators {\n'
         + '      edges {\n'
         + '        node {\n'
