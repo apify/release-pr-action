@@ -39032,7 +39032,7 @@ async function getGitHubUsernameToEmailMap(githubToken) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch Apify org member emails. Status: ${response.status}`);
+        throw new Error(`Failed to fetch Apify org member emails. Response ${await response.json()}`);
     }
 
     const { data: { repository: { collaborators: { edges } } } } = await response.json();
