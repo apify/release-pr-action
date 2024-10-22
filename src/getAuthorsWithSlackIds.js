@@ -71,17 +71,18 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         return authors;
     }
 
-    console.log(await getGitHubUsernameToEmailMap(githubToken));
-
     try {
+        // Create mapping from GitHub usernames to @apify.com emails.
+        const githubUsernameToEmailMap = await getGitHubUsernameToEmailMap(githubToken);
+
         // Create mapping from emails to Slack IDs.
         const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
 
         return authors.map((author) => {
-            const slackId = emailToSlackIdMap[author.email];
+            const slackId = emailToSlackIdMap[githubUsernameToEmailMap[author.name] || author.email];
 
             if (!slackId) {
-                core.warning(`Slack ID not found for ${author.email}`);
+                core.warning(`Slack ID not found for ${author.name} (${author.email})`);
                 return author;
             }
 
