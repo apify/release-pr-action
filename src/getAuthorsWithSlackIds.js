@@ -45,6 +45,8 @@ async function getGitHubUsernameToEmailMap(githubToken) {
         throw new Error(`Failed to fetch Apify org member emails. Response ${await response.text()}`);
     }
 
+    core.info(await response.text());
+
     const { data: { repository: { collaborators: { edges } } } } = await response.json();
 
     core.info(JSON.stringify(edges));
