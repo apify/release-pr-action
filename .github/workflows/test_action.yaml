@@ -21,6 +21,7 @@ jobs:
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-org-token: ${{ secrets.APIFY_SERVICE_ACCOUNT_GITHUB_TOKEN }}
           changelog-scopes: '{ "Action": ["action"] }'
           base-branch: 'main'
           create-release-pull-request: false

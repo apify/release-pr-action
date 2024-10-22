@@ -4,6 +4,9 @@ inputs:
   github-token:
     required: true
     description: 'Github token with repository scope permissions'
+  github-org-token:
+    required: false
+    description: 'Github token with organization scope permissions'
   slack-token:
     required: false
     description: 'Slack token (needed if slack-channel input is set)'

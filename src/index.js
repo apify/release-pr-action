@@ -76,6 +76,7 @@ async function createChangelog(
  */
 async function run() {
     const githubToken = core.getInput('github-token');
+    const githubOrgToken = core.getInput('github-org-token');
     const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const changelogMethod = core.getInput('changelog-method');
@@ -171,7 +172,7 @@ async function run() {
         }
 
         core.info(`Fetching Slack IDs for changelog authors`);
-        authorsWithSlackIds = await getAuthorsWithSlackIds(githubToken, slackToken, authors);
+        authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,
