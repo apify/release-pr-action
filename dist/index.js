@@ -39035,12 +39035,14 @@ async function getGitHubUsernameToEmailMap(githubToken) {
         throw new Error(`Failed to fetch Apify org member emails. Response ${await response.text()}`);
     }
 
-    core.info(await response.text());
-
     const { data: { repository: { collaborators: { edges } } } } = await response.json();
 
     core.info(JSON.stringify(edges));
-    console.log(edges);
+
+    return edges.reduce((acc, { node: { login, organizationVerifiedDomainEmails } }) => {
+        acc[login] = organizationVerifiedDomainEmails.length > 0 ? organizationVerifiedDomainEmails[0] : null;
+        return acc;
+    }, {});
 }
 
 /**
@@ -39059,7 +39061,7 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         return authors;
     }
 
-    await getGitHubUsernameToEmailMap(githubToken);
+    console.log(await getGitHubUsernameToEmailMap(githubToken));
 
     try {
         // Create mapping from emails to Slack IDs.

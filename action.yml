@@ -4,9 +4,6 @@ inputs:
   github-token:
     required: true
     description: 'Github token with repository scope permissions'
-  github-org-token:
-    required: false
-    description: 'Github token with organization scope permissions'
   slack-token:
     required: false
     description: 'Slack token (needed if slack-channel input is set)'
@@ -50,6 +47,9 @@ inputs:
     required: false
     default: false
     description: 'Fetch Slack IDs of commit authors in the changelog'
+  github-org-token:
+    required: false
+    description: 'Github token with scopes to access Apify org members. Needed to map commit authors onto Slack IDs.'
 outputs:
   github-changelog:
     description: 'Changelog content in GihHub markdown'
