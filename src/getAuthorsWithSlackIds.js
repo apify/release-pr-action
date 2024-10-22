@@ -63,11 +63,11 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         return authors;
     }
 
+    await getGitHubUsernameToEmailMap(githubToken);
+
     try {
         // Create mapping from emails to Slack IDs.
         const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
-
-        await getGitHubUsernameToEmailMap(githubToken);
 
         return authors.map((author) => {
             const slackId = emailToSlackIdMap[author.email];
