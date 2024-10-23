@@ -39036,7 +39036,7 @@ async function getGitHubLoginToEmailMap(githubToken) {
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
-            Authorizatioffn: `bearer ${githubToken}`,
+            Authorization: `bearer ${githubToken}`,
         },
         body: JSON.stringify({ query }),
     });
@@ -39860,7 +39860,7 @@ async function run() {
             authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
         } catch (e) {
             // Let's not kill the whole action.
-            core.warning(`Failed getting authors with Slack IDs. Error: ${e}`);
+            core.warning(`Failed getting authors with Slack IDs: ${e}`);
             authorsWithSlackIds = authors;
         }
     }

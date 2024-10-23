@@ -46,7 +46,7 @@ async function getGitHubLoginToEmailMap(githubToken) {
         headers: {
             'Content-Type': 'application/json',
             Accept: 'application/json',
-            Authorizatioffn: `bearer ${githubToken}`,
+            Authorization: `bearer ${githubToken}`,
         },
         body: JSON.stringify({ query }),
     });
