@@ -39037,6 +39037,7 @@ async function getGitHubUsernameToEmailMap(githubToken) {
 
     const { data: { repository: { collaborators: { edges } } } } = await response.json();
 
+    // TODO: Drop this
     core.info(JSON.stringify(edges));
 
     return edges.reduce((acc, { node: { login, organizationVerifiedDomainEmails } }) => {
@@ -39068,7 +39069,11 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         // Create mapping from emails to Slack IDs.
         const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
 
+        core.info(JSON.stringify(githubUsernameToEmailMap));
+
+        // TODO: fix this type error
         return authors.map((author) => {
+            core.info(`Email for ${author.name}: ${githubUsernameToEmailMap[author.name]}`);
             const slackId = emailToSlackIdMap[githubUsernameToEmailMap[author.name] || author.email];
 
             if (!slackId) {
