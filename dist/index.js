@@ -39855,6 +39855,10 @@ async function run() {
             throw new Error('Slack token is required to fetch author Slack IDs');
         }
 
+        if (!githubOrgToken) {
+            throw new Error('GitHub token with org access is required to fetch author Slack IDs');
+        }
+
         try {
             core.info(`Fetching Slack IDs for changelog authors`);
             authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
