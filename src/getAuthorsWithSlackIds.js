@@ -79,7 +79,6 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         const emailToSlackIdMap = await getEmailToSlackIdMap(slackToken);
 
         return authors.map((author) => {
-            core.info(`Email for ${author.login}: ${githubLoginToEmailMap[author.login]}`);
             const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
 
             if (!slackId) {
