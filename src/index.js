@@ -171,8 +171,14 @@ async function run() {
             throw new Error('Slack token is required to fetch author Slack IDs');
         }
 
-        core.info(`Fetching Slack IDs for changelog authors`);
-        authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+        try {
+            core.info(`Fetching Slack IDs for changelog authors`);
+            authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+        } catch (e) {
+            // Let's not kill the whole action.
+            core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
+            authorsWithSlackIds = authors;
+        }
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,

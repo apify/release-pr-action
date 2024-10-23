@@ -38991,7 +38991,10 @@ module.exports = {
 const core = __nccwpck_require__(2186);
 const { WebClient } = __nccwpck_require__(431);
 
-/** @returns {Promise<{ [email: string]: string }>} */
+/**
+ * Create mapping from @apify.com emails to Slack IDs.
+ * @returns {Promise<{ [email: string]: string }>}
+ */
 async function getEmailToSlackIdMap(slackToken) {
     core.info(`Trying to fetch Slack users`);
     const slack = new WebClient(slackToken);
@@ -39007,8 +39010,13 @@ async function getEmailToSlackIdMap(slackToken) {
         }, {});
 }
 
-/** @returns {Promise<{ [login: string]: string }>} */
+/**
+ * Create mapping from GitHub usernames to @apify.com emails.
+ * @returns {Promise<{ [login: string]: string }>}
+ */
 async function getGitHubLoginToEmailMap(githubToken) {
+    core.info('Trying to fetch @apify.com email addresses for Apify org members');
+
     const query = '{\n'
         + '  repository(name: "release-pr-action", owner: "apify") {\n'
         + '    collaborators {\n'
@@ -39039,6 +39047,8 @@ async function getGitHubLoginToEmailMap(githubToken) {
 
     const { data: { repository: { collaborators: { edges } } } } = await response.json();
 
+    core.info(`Fetched ${edges.length} Apify org members`);
+
     return edges.reduce((acc, { node: { login, organizationVerifiedDomainEmails } }) => {
         acc[login] = organizationVerifiedDomainEmails.length > 0 ? organizationVerifiedDomainEmails[0] : null;
         return acc;
@@ -39061,29 +39071,19 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         return authors;
     }
 
-    try {
-        // Create mapping from GitHub usernames to @apify.com emails.
-        const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
+    const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
+    const emailToSlackIdMap = await getEmailToSlackIdMap(slackToken);
 
-        // Create mapping from @apify.com emails to Slack IDs.
-        const emailToSlackIdMap = await getEmailToSlackIdMap(slackToken);
+    return authors.map((author) => {
+        const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
 
-        return authors.map((author) => {
-            core.info(`Email for ${author.login}: ${githubLoginToEmailMap[author.login]}`);
-            const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
+        if (!slackId) {
+            core.warning(`Slack ID not found for ${author.name} (${author.login} / ${author.email})`);
+            return author;
+        }
 
-            if (!slackId) {
-                core.warning(`Slack ID not found for ${author.name} (${author.login} / ${author.email})`);
-                return author;
-            }
-
-            return { ...author, slackId };
-        });
-    } catch (e) {
-        // Let's not kill the whole action.
-        core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
-        return authors;
-    }
+        return { ...author, slackId };
+    });
 }
 
 module.exports = {
@@ -39855,8 +39855,14 @@ async function run() {
             throw new Error('Slack token is required to fetch author Slack IDs');
         }
 
-        core.info(`Fetching Slack IDs for changelog authors`);
-        authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+        try {
+            core.info(`Fetching Slack IDs for changelog authors`);
+            authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+        } catch (e) {
+            // Let's not kill the whole action.
+            core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
+            authorsWithSlackIds = authors;
+        }
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,
