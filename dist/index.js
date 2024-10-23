@@ -39860,7 +39860,7 @@ async function run() {
             authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
         } catch (e) {
             // Let's not kill the whole action.
-            core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
+            core.warning(`Failed getting authors with Slack IDs. Error: ${e}`);
             authorsWithSlackIds = authors;
         }
     }
