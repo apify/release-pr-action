@@ -1,6 +1,7 @@
 const core = require('@actions/core');
 const { WebClient } = require('@slack/web-api');
 
+/** @returns {Promise<{ [email: string]: string }>} */
 async function getEmailToSlackIdMap(slackToken) {
     core.info(`Trying to fetch Slack users`);
     const slack = new WebClient(slackToken);
@@ -16,6 +17,7 @@ async function getEmailToSlackIdMap(slackToken) {
         }, {});
 }
 
+/** @returns {Promise<{ [login: string]: string }>} */
 async function getGitHubLoginToEmailMap(githubToken) {
     const query = '{\n'
         + '  repository(name: "release-pr-action", owner: "apify") {\n'
@@ -47,9 +49,6 @@ async function getGitHubLoginToEmailMap(githubToken) {
 
     const { data: { repository: { collaborators: { edges } } } } = await response.json();
 
-    // TODO: Drop this
-    core.info(JSON.stringify(edges));
-
     return edges.reduce((acc, { node: { login, organizationVerifiedDomainEmails } }) => {
         acc[login] = organizationVerifiedDomainEmails.length > 0 ? organizationVerifiedDomainEmails[0] : null;
         return acc;
@@ -77,17 +76,14 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
 
         // Create mapping from @apify.com emails to Slack IDs.
-        const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
+        const emailToSlackIdMap = await getEmailToSlackIdMap(slackToken);
 
-        core.info(JSON.stringify(githubLoginToEmailMap));
-
-        // TODO: fix this type error
         return authors.map((author) => {
-            core.info(`Email for ${author.name}: ${githubLoginToEmailMap[author.login]}`);
+            core.info(`Email for ${author.login}: ${githubLoginToEmailMap[author.login]}`);
             const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
 
             if (!slackId) {
-                core.warning(`Slack ID not found for ${author.name} (${author.email})`);
+                core.warning(`Slack ID not found for ${author.name} (${author.login} / ${author.email})`);
                 return author;
             }
 
