@@ -39066,7 +39066,7 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
         // Create mapping from GitHub usernames to @apify.com emails.
         const githubUsernameToEmailMap = await getGitHubUsernameToEmailMap(githubToken);
 
-        // Create mapping from emails to Slack IDs.
+        // Create mapping from @apify.com emails to Slack IDs.
         const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
 
         core.info(JSON.stringify(githubUsernameToEmailMap));
@@ -39238,6 +39238,7 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     for (const commit of commits) {
         const { message, author } = commit.commit;
         commitMessages.push(message);
+        core.info(`Commit author: ${JSON.stringify(author)}`);
         authors.set(author.email, author); // We want each author only once
     }
 

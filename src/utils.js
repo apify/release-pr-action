@@ -108,6 +108,7 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     for (const commit of commits) {
         const { message, author } = commit.commit;
         commitMessages.push(message);
+        core.info(`Commit author: ${JSON.stringify(author)}`);
         authors.set(author.email, author); // We want each author only once
     }
 
