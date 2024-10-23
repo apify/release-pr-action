@@ -38,7 +38,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string }> }>}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }> }>}
  */
 async function createChangelog(
     method,
@@ -76,6 +76,7 @@ async function createChangelog(
  */
 async function run() {
     const githubToken = core.getInput('github-token');
+    const githubOrgToken = core.getInput('github-org-token');
     const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const changelogMethod = core.getInput('changelog-method');
@@ -170,8 +171,18 @@ async function run() {
             throw new Error('Slack token is required to fetch author Slack IDs');
         }
 
-        core.info(`Fetching Slack IDs for changelog authors`);
-        authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
+        if (!githubOrgToken) {
+            throw new Error('GitHub token with org access is required to fetch author Slack IDs');
+        }
+
+        try {
+            core.info(`Fetching Slack IDs for changelog authors`);
+            authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+        } catch (e) {
+            // Let's not kill the whole action.
+            core.warning(`Failed getting authors with Slack IDs: ${e}`);
+            authorsWithSlackIds = authors;
+        }
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,

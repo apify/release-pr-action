@@ -38953,7 +38953,7 @@ async function prepareChangeLog(gitMessages, scopes) {
 async function improveChangeLog(changeList) {
     if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
     const completion = await openai.createChatCompletion({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
         messages: [
             {
                 role: 'system',
@@ -38992,49 +38992,98 @@ const core = __nccwpck_require__(2186);
 const { WebClient } = __nccwpck_require__(431);
 
 /**
+ * Create mapping from @apify.com emails to Slack IDs.
+ * @returns {Promise<{ [email: string]: string }>}
+ */
+async function getEmailToSlackIdMap(slackToken) {
+    core.info(`Trying to fetch Slack users`);
+    const slack = new WebClient(slackToken);
+    const { members } = await slack.users.list({});
+    core.info(`Fetched ${members.length} Slack users`);
+
+    // Create mapping from emails to Slack IDs.
+    return members
+        .filter((user) => user.id && user.profile?.email)
+        .reduce((acc, user) => {
+            acc[user.profile.email] = user.id;
+            return acc;
+        }, {});
+}
+
+/**
+ * Create mapping from GitHub usernames to @apify.com emails.
+ * @returns {Promise<{ [login: string]: string }>}
+ */
+async function getGitHubLoginToEmailMap(githubToken) {
+    core.info('Trying to fetch @apify.com email addresses for Apify org members');
+
+    const query = '{\n'
+        + '  repository(name: "release-pr-action", owner: "apify") {\n'
+        + '    collaborators {\n'
+        + '      edges {\n'
+        + '        node {\n'
+        + '          login\n'
+        + '          name\n'
+        + '          organizationVerifiedDomainEmails(login: "apify") {}\n'
+        + '        }\n'
+        + '      }\n'
+        + '    }\n'
+        + '  }\n'
+        + '}';
+
+    const response = await fetch('https://api.github.com/graphql', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: `bearer ${githubToken}`,
+        },
+        body: JSON.stringify({ query }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch Apify org member emails. Response ${await response.text()}`);
+    }
+
+    const { data: { repository: { collaborators: { edges } } } } = await response.json();
+
+    core.info(`Fetched ${edges.length} Apify org members`);
+
+    return edges.reduce((acc, { node: { login, organizationVerifiedDomainEmails } }) => {
+        acc[login] = organizationVerifiedDomainEmails.length > 0 ? organizationVerifiedDomainEmails[0] : null;
+        return acc;
+    }, {});
+}
+
+/**
  * Enhance authors with Slack IDs matching their email addresses.
  *
  * If the whole function fails, or some emails cannot be matched, the original authors are returned.
  *
+ * @param {string} githubToken
  * @param {string} slackToken
- * @param {array<{ name: string, email: string }>} authors
- * @returns {Promise<array<{ name: string, email: string, slackId?: string }>>}
+ * @param {array<{ name: string, email: string, login: string }>} authors
+ * @returns {Promise<array<{ name: string, email: string, login: string, slackId?: string }>>}
  */
-async function getAuthorsWithSlackIds(slackToken, authors) {
+async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
     if (!authors.length) {
         core.info('No authors to fetch Slack IDs for');
         return authors;
     }
 
-    try {
-        core.info(`Trying to fetch Slack users`);
-        const slack = new WebClient(slackToken);
-        const { members } = await slack.users.list({});
-        core.info(`Fetched ${members.length} Slack users`);
+    const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
+    const emailToSlackIdMap = await getEmailToSlackIdMap(slackToken);
 
-        // Create mapping from emails to Slack IDs.
-        const emailToSlackId = members
-            .filter((user) => user.id && user.profile?.email)
-            .reduce((acc, user) => {
-                acc[user.profile.email] = user.id;
-                return acc;
-            }, {});
+    return authors.map((author) => {
+        const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
 
-        return authors.map((author) => {
-            const slackId = emailToSlackId[author.email];
+        if (!slackId) {
+            core.warning(`Slack ID not found for ${author.name} (${author.login} / ${author.email})`);
+            return author;
+        }
 
-            if (!slackId) {
-                core.warning(`Slack ID not found for ${author.email}`);
-                return author;
-            }
-
-            return { ...author, slackId };
-        });
-    } catch (e) {
-        // Let's not kill the whole action.
-        core.warning(`Failed getting authors with Slack IDs. Error: ${JSON.stringify(e)}`);
-        return authors;
-    }
+        return { ...author, slackId };
+    });
 }
 
 module.exports = {
@@ -39184,8 +39233,9 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
 
     for (const commit of commits) {
         const { message, author } = commit.commit;
+        const { login } = commit.author;
         commitMessages.push(message);
-        authors.set(author.email, author); // We want each author only once
+        authors.set(author.email, { login, ...author }); // We want each author only once
     }
 
     return {
@@ -39226,8 +39276,9 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
     for (const page of compareResponse) {
         for (const commit of page.commits) {
             const { message, author } = commit.commit;
+            const { login } = commit.author;
             commitMessages.push(message);
-            authors.set(author.email, author); // We want each author only once
+            authors.set(author.email, { login, ...author }); // We want each author only once
         }
     }
 
@@ -39671,7 +39722,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string }> }>}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }> }>}
  */
 async function createChangelog(
     method,
@@ -39709,6 +39760,7 @@ async function createChangelog(
  */
 async function run() {
     const githubToken = core.getInput('github-token');
+    const githubOrgToken = core.getInput('github-org-token');
     const slackToken = core.getInput('slack-token');
     const changelogScopes = core.getInput('changelog-scopes');
     const changelogMethod = core.getInput('changelog-method');
@@ -39803,8 +39855,18 @@ async function run() {
             throw new Error('Slack token is required to fetch author Slack IDs');
         }
 
-        core.info(`Fetching Slack IDs for changelog authors`);
-        authorsWithSlackIds = await getAuthorsWithSlackIds(slackToken, authors);
+        if (!githubOrgToken) {
+            throw new Error('GitHub token with org access is required to fetch author Slack IDs');
+        }
+
+        try {
+            core.info(`Fetching Slack IDs for changelog authors`);
+            authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+        } catch (e) {
+            // Let's not kill the whole action.
+            core.warning(`Failed getting authors with Slack IDs: ${e}`);
+            authorsWithSlackIds = authors;
+        }
     }
 
     // Write file to disk, because sometimes it can be easier to read it from file-system,

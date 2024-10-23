@@ -107,8 +107,9 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
 
     for (const commit of commits) {
         const { message, author } = commit.commit;
+        const { login } = commit.author;
         commitMessages.push(message);
-        authors.set(author.email, author); // We want each author only once
+        authors.set(author.email, { login, ...author }); // We want each author only once
     }
 
     return {
@@ -149,8 +150,9 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
     for (const page of compareResponse) {
         for (const commit of page.commits) {
             const { message, author } = commit.commit;
+            const { login } = commit.author;
             commitMessages.push(message);
-            authors.set(author.email, author); // We want each author only once
+            authors.set(author.email, { login, ...author }); // We want each author only once
         }
     }
 
