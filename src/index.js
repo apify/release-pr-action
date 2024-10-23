@@ -38,7 +38,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string }> }>}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }> }>}
  */
 async function createChangelog(
     method,

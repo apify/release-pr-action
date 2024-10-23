@@ -39006,7 +39006,7 @@ async function getEmailToSlackIdMap(slackToken) {
         }, {});
 }
 
-async function getGitHubUsernameToEmailMap(githubToken) {
+async function getGitHubLoginToEmailMap(githubToken) {
     const query = '{\n'
         + '  repository(name: "release-pr-action", owner: "apify") {\n'
         + '    collaborators {\n'
@@ -39053,8 +39053,8 @@ async function getGitHubUsernameToEmailMap(githubToken) {
  *
  * @param {string} githubToken
  * @param {string} slackToken
- * @param {array<{ name: string, email: string }>} authors
- * @returns {Promise<array<{ name: string, email: string, slackId?: string }>>}
+ * @param {array<{ name: string, email: string, login: string }>} authors
+ * @returns {Promise<array<{ name: string, email: string, login: string, slackId?: string }>>}
  */
 async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
     if (!authors.length) {
@@ -39064,17 +39064,17 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
 
     try {
         // Create mapping from GitHub usernames to @apify.com emails.
-        const githubUsernameToEmailMap = await getGitHubUsernameToEmailMap(githubToken);
+        const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
 
         // Create mapping from @apify.com emails to Slack IDs.
         const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
 
-        core.info(JSON.stringify(githubUsernameToEmailMap));
+        core.info(JSON.stringify(githubLoginToEmailMap));
 
         // TODO: fix this type error
         return authors.map((author) => {
-            core.info(`Email for ${author.name}: ${githubUsernameToEmailMap[author.name]}`);
-            const slackId = emailToSlackIdMap[githubUsernameToEmailMap[author.name] || author.email];
+            core.info(`Email for ${author.name}: ${githubLoginToEmailMap[author.login]}`);
+            const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
 
             if (!slackId) {
                 core.warning(`Slack ID not found for ${author.name} (${author.email})`);
@@ -39237,9 +39237,9 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
 
     for (const commit of commits) {
         const { message, author } = commit.commit;
+        const { login } = commit.author;
         commitMessages.push(message);
-        core.info(`Commit: ${JSON.stringify(commit)}`);
-        authors.set(author.email, author); // We want each author only once
+        authors.set(author.email, { login, ...author }); // We want each author only once
     }
 
     return {
@@ -39280,8 +39280,9 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
     for (const page of compareResponse) {
         for (const commit of page.commits) {
             const { message, author } = commit.commit;
+            const { login } = commit.author;
             commitMessages.push(message);
-            authors.set(author.email, author); // We want each author only once
+            authors.set(author.email, { login, ...author }); // We want each author only once
         }
     }
 
@@ -39725,7 +39726,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string }> }>}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }> }>}
  */
 async function createChangelog(
     method,

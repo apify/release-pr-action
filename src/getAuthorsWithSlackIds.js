@@ -16,7 +16,7 @@ async function getEmailToSlackIdMap(slackToken) {
         }, {});
 }
 
-async function getGitHubUsernameToEmailMap(githubToken) {
+async function getGitHubLoginToEmailMap(githubToken) {
     const query = '{\n'
         + '  repository(name: "release-pr-action", owner: "apify") {\n'
         + '    collaborators {\n'
@@ -63,8 +63,8 @@ async function getGitHubUsernameToEmailMap(githubToken) {
  *
  * @param {string} githubToken
  * @param {string} slackToken
- * @param {array<{ name: string, email: string }>} authors
- * @returns {Promise<array<{ name: string, email: string, slackId?: string }>>}
+ * @param {array<{ name: string, email: string, login: string }>} authors
+ * @returns {Promise<array<{ name: string, email: string, login: string, slackId?: string }>>}
  */
 async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
     if (!authors.length) {
@@ -74,17 +74,17 @@ async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
 
     try {
         // Create mapping from GitHub usernames to @apify.com emails.
-        const githubUsernameToEmailMap = await getGitHubUsernameToEmailMap(githubToken);
+        const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
 
         // Create mapping from @apify.com emails to Slack IDs.
         const emailToSlackIdMap = getEmailToSlackIdMap(slackToken);
 
-        core.info(JSON.stringify(githubUsernameToEmailMap));
+        core.info(JSON.stringify(githubLoginToEmailMap));
 
         // TODO: fix this type error
         return authors.map((author) => {
-            core.info(`Email for ${author.name}: ${githubUsernameToEmailMap[author.name]}`);
-            const slackId = emailToSlackIdMap[githubUsernameToEmailMap[author.name] || author.email];
+            core.info(`Email for ${author.name}: ${githubLoginToEmailMap[author.login]}`);
+            const slackId = emailToSlackIdMap[githubLoginToEmailMap[author.login] || author.email];
 
             if (!slackId) {
                 core.warning(`Slack ID not found for ${author.name} (${author.email})`);
