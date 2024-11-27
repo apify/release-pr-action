@@ -58,5 +58,5 @@ outputs:
   github-changelog-authors:
     description: 'List of commit authors in the changelog as a JSON string. If fetch-author-slack-ids is set to true, the action will try to fetch a matching Slack ID for each author.'
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
