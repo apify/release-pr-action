@@ -21,45 +21,80 @@ async function getEmailToSlackIdMap(slackToken) {
 }
 
 /**
+ * @param {{ githubToken: string }}
+ *
+ * @return {Promise<{
+ *     login: string,
+ *     name: string,
+ *     organizationVerifiedDomainEmails: string[],
+ * }[]>}
+ */
+async function fetchGithubOrgUsers({ githubToken }) {
+    const query = `query GetOrganizationVerifiedEmails($after: String) {
+        repository(name: "release-pr-action", owner: "apify") {
+          collaborators(first: 100, after: $after) {
+            edges {
+              node {
+                login
+                name
+                organizationVerifiedDomainEmails(login: "apify") {}
+              }
+            }
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+          }
+        }
+    }`;
+
+    const orgUsers = [];
+
+    let endCursor;
+    let hasNextPage;
+
+    do {
+        const response = await fetch('https://api.github.com/graphql', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                Authorization: `Bearer ${githubToken}`,
+            },
+            body: JSON.stringify({
+                query,
+                variables: {
+                    after: endCursor ?? null,
+                },
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch Apify org member emails. Response ${await response.text()}`);
+        }
+
+        const responseBody = await response.json();
+        const { edges: collaborators, pageInfo } = responseBody.data.repository.collaborators;
+
+        orgUsers.push(...collaborators);
+
+        ({ hasNextPage, endCursor } = pageInfo);
+    } while (hasNextPage);
+
+    return orgUsers.map(({ node }) => node);
+}
+
+/**
  * Create mapping from GitHub usernames to @apify.com emails.
  * @returns {Promise<{ [login: string]: string }>}
  */
 async function getGitHubLoginToEmailMap(githubToken) {
     core.info('Trying to fetch @apify.com email addresses for Apify org members');
+    const githubOrgUsers = await fetchGithubOrgUsers({ githubToken });
 
-    const query = '{\n'
-        + '  repository(name: "release-pr-action", owner: "apify") {\n'
-        + '    collaborators {\n'
-        + '      edges {\n'
-        + '        node {\n'
-        + '          login\n'
-        + '          name\n'
-        + '          organizationVerifiedDomainEmails(login: "apify") {}\n'
-        + '        }\n'
-        + '      }\n'
-        + '    }\n'
-        + '  }\n'
-        + '}';
+    core.info(`Fetched ${githubOrgUsers.length} Apify org members`);
 
-    const response = await fetch('https://api.github.com/graphql', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            Authorization: `bearer ${githubToken}`,
-        },
-        body: JSON.stringify({ query }),
-    });
-
-    if (!response.ok) {
-        throw new Error(`Failed to fetch Apify org member emails. Response ${await response.text()}`);
-    }
-
-    const { data: { repository: { collaborators: { edges } } } } = await response.json();
-
-    core.info(`Fetched ${edges.length} Apify org members`);
-
-    return edges.reduce((acc, { node: { login, organizationVerifiedDomainEmails } }) => {
+    return githubOrgUsers.reduce((acc, { login, organizationVerifiedDomainEmails }) => {
         acc[login] = organizationVerifiedDomainEmails.length > 0 ? organizationVerifiedDomainEmails[0] : null;
         return acc;
     }, {});
