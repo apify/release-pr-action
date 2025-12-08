@@ -109,7 +109,20 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
         const { message, author } = commit.commit;
         const { login } = commit.author;
         commitMessages.push(message);
-        authors.set(login || author.email, { login, ...author }); // We want each author only once
+
+        if (login === 'Copilot') {
+            const originalAuthorLogin = findOriginalAuthorOfCopilotCommit(message);
+
+            if (!originalAuthorLogin) {
+                // eslint-disable-next-line no-console
+                console.error(`ERROR: could not find original author for Copilot's commit "${commit.sha}"`);
+                continue;
+            }
+
+            authors.set(originalAuthorLogin, { login: originalAuthorLogin, ...author });
+        } else {
+            authors.set(login || author.email, { login, ...author }); // We want each author only once
+        }
     }
 
     return {
@@ -152,7 +165,20 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
             const { message, author } = commit.commit;
             const { login } = commit.author;
             commitMessages.push(message);
-            authors.set(login || author.email, { login, ...author }); // We want each author only once
+
+            if (login === 'Copilot') {
+                const originalAuthorLogin = findOriginalAuthorOfCopilotCommit(message);
+
+                if (!originalAuthorLogin) {
+                    // eslint-disable-next-line no-console
+                    console.error(`ERROR: could not find original author for Copilot's commit "${commit.sha}"`);
+                    continue;
+                }
+
+                authors.set(originalAuthorLogin, { login: originalAuthorLogin, ...author });
+            } else {
+                authors.set(login || author.email, { login, ...author }); // We want each author only once
+            }
         }
     }
 
@@ -307,6 +333,28 @@ async function sendReleaseNotesToSlack(slackToken, options) {
         text,
         ...payload,
     });
+}
+
+const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<login>[\w-]+)/gim;
+
+function findOriginalAuthorOfCopilotCommit(commitMessage) {
+    let coauthor;
+    const coauthors = new Set();
+
+    // eslint-disable-next-line no-cond-assign
+    while ((coauthor = COAUTHORED_BY_REGEX.exec(commitMessage)) != null) {
+        coauthors.add(coauthor.groups.login);
+    }
+
+    for (const authorLogin of Array.from(coauthors)) {
+        if (authorLogin.toLowerCase().includes('copilot')) {
+            continue;
+        }
+
+        return authorLogin;
+    }
+
+    return null;
 }
 
 module.exports = {
