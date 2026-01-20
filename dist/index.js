@@ -39496,7 +39496,7 @@ async function sendReleaseNotesToSlack(slackToken, options) {
     });
 }
 
-const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<name>.+) <(?<email>.+)@(?<emailDomain>.+)>/gim;
+const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<name>.+?) <(?<email>.+?)@(?<emailDomain>.+?)>/gim;
 const GITHUB_LOGIN_REGEX = /^[a-z0-9-]+$/i;
 
 function findOriginalAuthorOfCopilotCommit(commitMessage) {
@@ -39517,8 +39517,10 @@ function findOriginalAuthorOfCopilotCommit(commitMessage) {
             }
         }
 
-        if (GITHUB_LOGIN_REGEX.test(name)) {
-            coauthors.add(name);
+        const trimmedName = name && name.trim();
+
+        if (trimmedName && GITHUB_LOGIN_REGEX.test(trimmedName)) {
+            coauthors.add(trimmedName);
 
             continue;
         }
