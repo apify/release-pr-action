@@ -336,7 +336,9 @@ async function sendReleaseNotesToSlack(slackToken, options) {
 }
 
 const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<name>.+?) <(?<email>.+?)@(?<emailDomain>.+?)>/gim;
-const GITHUB_LOGIN_REGEX = /^[\w-_]+$/i;
+
+// https://docs.github.com/en/enterprise-cloud@latest/admin/managing-iam/iam-configuration-reference/username-considerations-for-external-authentication#about-username-normalization
+const GITHUB_LOGIN_REGEX = /^[a-zA-Z0-9-]+$/i;
 
 function findOriginalAuthorOfCopilotCommit(commitMessage) {
     let coauthor;
