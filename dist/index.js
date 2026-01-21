@@ -39496,7 +39496,8 @@ async function sendReleaseNotesToSlack(slackToken, options) {
     });
 }
 
-const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<login>[\w-]+)/gim;
+const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<name>.+?) <(?<email>.+?)@(?<emailDomain>.+?)>/gim;
+const GITHUB_LOGIN_REGEX = /^[a-z0-9-]+$/i;
 
 function findOriginalAuthorOfCopilotCommit(commitMessage) {
     let coauthor;
@@ -39504,7 +39505,31 @@ function findOriginalAuthorOfCopilotCommit(commitMessage) {
 
     // eslint-disable-next-line no-cond-assign
     while ((coauthor = COAUTHORED_BY_REGEX.exec(commitMessage)) != null) {
-        coauthors.add(coauthor.groups.login);
+        const { name, email, emailDomain } = coauthor.groups;
+
+        if (emailDomain === 'users.noreply.github.com' && email && email.includes('+')) {
+            const [, maybeLogin] = email.split('+');
+
+            if (GITHUB_LOGIN_REGEX.test(maybeLogin)) {
+                coauthors.add(maybeLogin);
+
+                continue;
+            }
+        }
+
+        const trimmedName = name && name.trim();
+
+        if (trimmedName && GITHUB_LOGIN_REGEX.test(trimmedName)) {
+            coauthors.add(trimmedName);
+
+            continue;
+        }
+
+        // eslint-disable-next-line no-console
+        console.warn(`WARNING: could not parse the login from the "Co-authored-by" trailer of a Copilot commit`, {
+            name,
+            email: `${email}@${emailDomain}`,
+        });
     }
 
     for (const authorLogin of Array.from(coauthors)) {
@@ -39527,6 +39552,7 @@ module.exports = {
     getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
+    findOriginalAuthorOfCopilotCommit,
 };
 
 
