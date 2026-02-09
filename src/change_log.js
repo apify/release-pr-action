@@ -70,27 +70,15 @@ async function structureChangelog(changelogStructure, scopes) {
     };
 }
 
-// Regex to extract PR numbers from commit messages (e.g., "(#123)" or "#123")
-const PR_NUMBER_REGEX = /\(#(\d+)\)|(?<!\()#(\d+)(?!\))/g;
-
 /**
  * Extract PR numbers from a commit message
  * @param {string} message - commit message
  * @returns {number[]} - array of PR numbers found
  */
 function extractPrNumbers(message) {
-    const prNumbers = [];
-    let match;
-    while ((match = PR_NUMBER_REGEX.exec(message)) !== null) {
-        // match[1] is from (#123), match[2] is from #123
-        const prNumber = parseInt(match[1] || match[2], 10);
-        if (!prNumbers.includes(prNumber)) {
-            prNumbers.push(prNumber);
-        }
-    }
-    // Reset regex lastIndex for next use
-    PR_NUMBER_REGEX.lastIndex = 0;
-    return prNumbers;
+    const matches = message.matchAll(/#(\d+)/g);
+    const prNumbers = [...matches].map((m) => parseInt(m[1], 10));
+    return [...new Set(prNumbers)];
 }
 
 /**
