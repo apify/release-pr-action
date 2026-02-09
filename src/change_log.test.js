@@ -1,6 +1,6 @@
 const { prepareChangeLog } = require('./change_log');
 
-test('extracts multiple PR numbers from commits', async () => {
+test('extracts PR numbers from commits, ignoring merge commits', async () => {
     const scopes = { Worker: ['worker'] };
     const gitMessages = [
         'feat: first feature (#10)',
@@ -8,9 +8,14 @@ test('extracts multiple PR numbers from commits', async () => {
         'feat(worker): another feature (#20)',
         'chore: update deps (#15)',
         'feat: feature without PR number',
+        "Merge branch 'master' into release/v1.0.0",
+        "Merge branch 'release/v1.0.0' into feature-branch",
+        'Merge pull request #99 from some-branch',
+        'feat: feature with multiple refs (#30) and (#31)\nBody mentions #32',
     ];
     const { changelog, includedPrNumbers } = await prepareChangeLog(gitMessages, scopes);
-    expect(includedPrNumbers).toEqual([5, 10, 15, 20]); // Should be sorted
+    // Should be sorted, ignore merge commits, only first PR from first line
+    expect(includedPrNumbers).toEqual([5, 10, 15, 20, 30]);
     expect(changelog).toContain('first feature');
     expect(changelog).toContain('bug fix');
 });

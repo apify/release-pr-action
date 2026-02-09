@@ -70,15 +70,25 @@ async function structureChangelog(changelogStructure, scopes) {
     };
 }
 
+// Regex to match merge commits from master or release branches
+const MERGE_COMMIT_REGEX = /^Merge (branch '(master|main|release\/[^']+)'|pull request #\d+ from)/i;
+
 /**
- * Extract PR numbers from a commit message
+ * Extract PR number from the first line of a commit message.
+ * Returns null for merge commits from master/release branches.
  * @param {string} message - commit message
- * @returns {number[]} - array of PR numbers found
+ * @returns {number|null} - PR number or null if not found
  */
-function extractPrNumbers(message) {
-    const matches = message.matchAll(/#(\d+)/g);
-    const prNumbers = [...matches].map((m) => parseInt(m[1], 10));
-    return [...new Set(prNumbers)];
+function extractPrNumber(message) {
+    const firstLine = message.split('\n')[0];
+
+    // Ignore merge commits from master/release branches
+    if (MERGE_COMMIT_REGEX.test(firstLine)) {
+        return null;
+    }
+
+    const match = firstLine.match(/#(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
 }
 
 /**
@@ -105,9 +115,9 @@ async function prepareChangeLog(gitMessages, scopes) {
 
     gitMessages
         .map((commitMessage) => {
-            // Extract PR numbers before parsing
-            const prNumbers = extractPrNumbers(commitMessage);
-            prNumbers.forEach((num) => allPrNumbers.add(num));
+            // Extract PR number from first line (ignoring merge commits)
+            const prNumber = extractPrNumber(commitMessage);
+            if (prNumber) allPrNumbers.add(prNumber);
             return commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN });
         })
         .filter((parsed) => !!parsed.subject) // Filter out commits that didn't match conventional commit
