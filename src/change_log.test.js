@@ -1,5 +1,20 @@
 const { prepareChangeLog } = require('./change_log');
 
+test('extracts multiple PR numbers from commits', async () => {
+    const scopes = { Worker: ['worker'] };
+    const gitMessages = [
+        'feat: first feature (#10)',
+        'fix: bug fix (#5)',
+        'feat(worker): another feature (#20)',
+        'chore: update deps (#15)',
+        'feat: feature without PR number',
+    ];
+    const { changelog, includedPrNumbers } = await prepareChangeLog(gitMessages, scopes);
+    expect(includedPrNumbers).toEqual([5, 10, 15, 20]); // Should be sorted
+    expect(changelog).toContain('first feature');
+    expect(changelog).toContain('bug fix');
+});
+
 test('log correctly prepared', async () => {
     const scopes = { Worker: ['worker'] };
     const gitMessages = [
@@ -10,8 +25,8 @@ test('log correctly prepared', async () => {
         'feat(worker): Update packages [internal]',
         'feat: Change sign-up text (#46)',
     ];
-    const releaseChangelog = await prepareChangeLog(gitMessages, scopes);
-    expect(releaseChangelog).toEqual(`**Worker**
+    const { changelog, includedPrNumbers } = await prepareChangeLog(gitMessages, scopes);
+    expect(changelog).toEqual(`**Worker**
 
 :rocket: _User-facing_
 * just new feature with scope
@@ -25,6 +40,7 @@ test('log correctly prepared', async () => {
 * Update packages
 
 `);
+    expect(includedPrNumbers).toEqual([46]);
 });
 
 test('log correctly prepared for monorepo', async () => {
@@ -42,8 +58,8 @@ test('log correctly prepared for monorepo', async () => {
         'feat(api): New cool feature in API 💥 (#46)',
         'feat(intl): Change sign-up text (#46)',
     ];
-    const releaseChangelog = await prepareChangeLog(gitMessages, scopes);
-    expect(releaseChangelog).toEqual(`**Console**
+    const { changelog, includedPrNumbers } = await prepareChangeLog(gitMessages, scopes);
+    expect(changelog).toEqual(`**Console**
 
 :rocket: _User-facing_
 * feature with console scope
@@ -67,6 +83,7 @@ test('log correctly prepared for monorepo', async () => {
 * Api internal change
 
 `);
+    expect(includedPrNumbers).toEqual([46]);
 });
 
 test('log correctly using openAI', async () => {
@@ -87,9 +104,10 @@ test('log correctly using openAI', async () => {
         'feat(api): New cool feature in API 💥 (#46)',
         'feat(intl): Change sign-up text (#46)',
     ];
-    const releaseChangelog = await prepareChangeLog(gitMessages, scopes);
+    const { changelog, includedPrNumbers } = await prepareChangeLog(gitMessages, scopes);
     // NOTE: OpenAI is not deterministic, so we can't test for exact string, let's print it out to be able check.
-    console.log(releaseChangelog);
-    expect(releaseChangelog).toEqual(expect.stringContaining('**Console**'));
-    expect(releaseChangelog).toEqual(expect.stringContaining('**Api**'));
+    console.log(changelog);
+    expect(changelog).toEqual(expect.stringContaining('**Console**'));
+    expect(changelog).toEqual(expect.stringContaining('**Api**'));
+    expect(includedPrNumbers).toEqual([46]);
 });
