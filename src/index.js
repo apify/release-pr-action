@@ -38,7 +38,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }> }>}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }>, includedPrNumbers: number[] }>}
  */
 async function createChangelog(
     method,
@@ -50,25 +50,26 @@ async function createChangelog(
 ) {
     let changelog;
     let authors = [];
+    let includedPrNumbers = [];
 
     switch (method) {
         case 'pull_request_description':
             changelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            ({ changelog, authors } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
+            ({ changelog, authors, includedPrNumbers } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
             break;
         case 'pull_request_title':
-            changelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
+            ({ changelog, includedPrNumbers } = await getChangelogFromPullRequestTitle(octokit, scopes, context));
             break;
         case 'commits_compare':
-            ({ changelog, authors } = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes));
+            ({ changelog, authors, includedPrNumbers } = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes));
             break;
         default:
             core.error(`Unrecognized "changelog-method" input: ${method}`);
             break;
     }
-    return { changelog, authors };
+    return { changelog, authors, includedPrNumbers };
 }
 
 /**
@@ -119,7 +120,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const { changelog, authors } = await createChangelog(
+    const { changelog, authors, includedPrNumbers } = await createChangelog(
         changelogMethod,
         octokit,
         scopes,
@@ -136,6 +137,7 @@ async function run() {
             head: headBranch,
             base: baseBranch,
             changelog,
+            includedPrNumbers,
         });
     }
 

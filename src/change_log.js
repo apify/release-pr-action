@@ -70,11 +70,32 @@ async function structureChangelog(changelogStructure, scopes) {
     };
 }
 
+// Regex to match merge commits from master or release branches
+const MERGE_COMMIT_REGEX = /^Merge (branch '(master|main|release\/[^']+)'|pull request #\d+ from)/i;
+
+/**
+ * Extract PR number from the first line of a commit message.
+ * Returns null for merge commits from master/release branches.
+ * @param {string} message - commit message
+ * @returns {number|null} - PR number or null if not found
+ */
+function extractPrNumber(message) {
+    const firstLine = message.split('\n')[0];
+
+    // Ignore merge commits from master/release branches
+    if (MERGE_COMMIT_REGEX.test(firstLine)) {
+        return null;
+    }
+
+    const match = firstLine.match(/#(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+}
+
 /**
  * Parse commit messages and convert them into human readable changelog
  * @param {*} gitMessages - commit messages
  * @param {*} scopes      - convectional commits scopes to group changelog items
- * @returns {Promise<string>}
+ * @returns {Promise<{ changelog: string, includedPrNumbers: number[] }>}
  */
 async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
@@ -84,6 +105,8 @@ async function prepareChangeLog(gitMessages, scopes) {
         admin: {},
         internal: {},
     };
+    const allPrNumbers = new Set();
+
     whitelistedScopes.map((scope) => {
         changelogStructure.user[scope] = [];
         changelogStructure.admin[scope] = [];
@@ -91,7 +114,12 @@ async function prepareChangeLog(gitMessages, scopes) {
     });
 
     gitMessages
-        .map((commitMessage) => commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN }))
+        .map((commitMessage) => {
+            // Extract PR number from first line (ignoring merge commits)
+            const prNumber = extractPrNumber(commitMessage);
+            if (prNumber) allPrNumbers.add(prNumber);
+            return commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN });
+        })
         .filter((parsed) => !!parsed.subject) // Filter out commits that didn't match conventional commit
         .map((parsed) => {
             // Remove links `(#23)` on github PR/issue, it will not look good in slack message
@@ -193,7 +221,11 @@ async function prepareChangeLog(gitMessages, scopes) {
     const { releaseChangelog, releaseChangelogV2 } = await structureChangelog(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
-    return releaseChangelogV2 || releaseChangelog;
+    const includedPrNumbers = Array.from(allPrNumbers).sort((a, b) => a - b);
+    return {
+        changelog: releaseChangelogV2 || releaseChangelog,
+        includedPrNumbers,
+    };
 }
 
 async function improveChangeLog(changeList) {

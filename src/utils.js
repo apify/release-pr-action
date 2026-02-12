@@ -19,14 +19,28 @@ const PULL_REQUEST_BODY_NOTE_V2 = `${PULL_REQUEST_BODY_NOTE} The change log is g
 const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}`, 'mg');
 
 /**
+ * Format included PRs as a markdown list with links
+ * @param {number[]} prNumbers - array of PR numbers
+ * @returns {string} - markdown formatted list of PR links
+ */
+function formatIncludedPrsList(prNumbers) {
+    if (!prNumbers || prNumbers.length === 0) {
+        return '';
+    }
+    const prLinks = prNumbers.map((num) => `- #${num}`).join('\n');
+    return `\n\n## Included Pull Requests\n${prLinks}`;
+}
+
+/**
  * Creates/Updates pull request with description containing changelog
  * @param {*} octokit - authorized instance of github.rest client
  * @param {*} options - options
  */
 async function createOrUpdatePullRequest(octokit, options) {
-    const { owner, repo, head, base, changelog, ...theRestOptions } = options;
+    const { owner, repo, head, base, changelog, includedPrNumbers, ...theRestOptions } = options;
+    const includedPrsSection = formatIncludedPrsList(owner, repo, includedPrNumbers);
     const body = `${openai ? PULL_REQUEST_BODY_NOTE_V2 : PULL_REQUEST_BODY_NOTE}\n`
-        + `${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}`;
+        + `${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}${includedPrsSection}`;
     try {
         core.info(`Creating pull request ${base} <- ${head}`);
         await octokit.rest.pulls.create({
@@ -125,8 +139,10 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
         }
     }
 
+    const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
     return {
-        changelog: await prepareChangeLog(commitMessages, scopes),
+        changelog,
+        includedPrNumbers,
         authors: Array.from(authors.values()),
     };
 }
@@ -139,7 +155,8 @@ async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
         pull_number: pullNumber,
     })).data;
     if (!title) throw new Error('Could not get pull requests title');
-    return prepareChangeLog([title], scopes);
+    const { changelog, includedPrNumbers } = await prepareChangeLog([title], scopes);
+    return { changelog, includedPrNumbers };
 }
 
 /**
@@ -186,8 +203,10 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
 
+    const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
     return {
-        changelog: await prepareChangeLog(commitMessages, scopes),
+        changelog,
+        includedPrNumbers,
         authors: Array.from(authors.values()),
     };
 }

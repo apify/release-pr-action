@@ -38824,11 +38824,32 @@ async function structureChangelog(changelogStructure, scopes) {
     };
 }
 
+// Regex to match merge commits from master or release branches
+const MERGE_COMMIT_REGEX = /^Merge (branch '(master|main|release\/[^']+)'|pull request #\d+ from)/i;
+
+/**
+ * Extract PR number from the first line of a commit message.
+ * Returns null for merge commits from master/release branches.
+ * @param {string} message - commit message
+ * @returns {number|null} - PR number or null if not found
+ */
+function extractPrNumber(message) {
+    const firstLine = message.split('\n')[0];
+
+    // Ignore merge commits from master/release branches
+    if (MERGE_COMMIT_REGEX.test(firstLine)) {
+        return null;
+    }
+
+    const match = firstLine.match(/#(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+}
+
 /**
  * Parse commit messages and convert them into human readable changelog
  * @param {*} gitMessages - commit messages
  * @param {*} scopes      - convectional commits scopes to group changelog items
- * @returns {Promise<string>}
+ * @returns {Promise<{ changelog: string, includedPrNumbers: number[] }>}
  */
 async function prepareChangeLog(gitMessages, scopes) {
     core.info('Generating change log ..');
@@ -38838,6 +38859,8 @@ async function prepareChangeLog(gitMessages, scopes) {
         admin: {},
         internal: {},
     };
+    const allPrNumbers = new Set();
+
     whitelistedScopes.map((scope) => {
         changelogStructure.user[scope] = [];
         changelogStructure.admin[scope] = [];
@@ -38845,7 +38868,12 @@ async function prepareChangeLog(gitMessages, scopes) {
     });
 
     gitMessages
-        .map((commitMessage) => commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN }))
+        .map((commitMessage) => {
+            // Extract PR number from first line (ignoring merge commits)
+            const prNumber = extractPrNumber(commitMessage);
+            if (prNumber) allPrNumbers.add(prNumber);
+            return commitParser.sync(commitMessage, { headerPattern: HEADER_PATTERN });
+        })
         .filter((parsed) => !!parsed.subject) // Filter out commits that didn't match conventional commit
         .map((parsed) => {
             // Remove links `(#23)` on github PR/issue, it will not look good in slack message
@@ -38947,7 +38975,11 @@ async function prepareChangeLog(gitMessages, scopes) {
     const { releaseChangelog, releaseChangelogV2 } = await structureChangelog(changelogStructure, scopes);
 
     core.info('Change log was generated successfully');
-    return releaseChangelogV2 || releaseChangelog;
+    const includedPrNumbers = Array.from(allPrNumbers).sort((a, b) => a - b);
+    return {
+        changelog: releaseChangelogV2 || releaseChangelog,
+        includedPrNumbers,
+    };
 }
 
 async function improveChangeLog(changeList) {
@@ -39180,14 +39212,28 @@ const PULL_REQUEST_BODY_NOTE_V2 = `${PULL_REQUEST_BODY_NOTE} The change log is g
 const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG_ANNOTATION}`, 'mg');
 
 /**
+ * Format included PRs as a markdown list with links
+ * @param {number[]} prNumbers - array of PR numbers
+ * @returns {string} - markdown formatted list of PR links
+ */
+function formatIncludedPrsList(prNumbers) {
+    if (!prNumbers || prNumbers.length === 0) {
+        return '';
+    }
+    const prLinks = prNumbers.map((num) => `- #${num}`).join('\n');
+    return `\n\n## Included Pull Requests\n${prLinks}`;
+}
+
+/**
  * Creates/Updates pull request with description containing changelog
  * @param {*} octokit - authorized instance of github.rest client
  * @param {*} options - options
  */
 async function createOrUpdatePullRequest(octokit, options) {
-    const { owner, repo, head, base, changelog, ...theRestOptions } = options;
+    const { owner, repo, head, base, changelog, includedPrNumbers, ...theRestOptions } = options;
+    const includedPrsSection = formatIncludedPrsList(owner, repo, includedPrNumbers);
     const body = `${openai ? PULL_REQUEST_BODY_NOTE_V2 : PULL_REQUEST_BODY_NOTE}\n`
-        + `${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}`;
+        + `${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}${includedPrsSection}`;
     try {
         core.info(`Creating pull request ${base} <- ${head}`);
         await octokit.rest.pulls.create({
@@ -39286,8 +39332,10 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
         }
     }
 
+    const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
     return {
-        changelog: await prepareChangeLog(commitMessages, scopes),
+        changelog,
+        includedPrNumbers,
         authors: Array.from(authors.values()),
     };
 }
@@ -39300,7 +39348,8 @@ async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
         pull_number: pullNumber,
     })).data;
     if (!title) throw new Error('Could not get pull requests title');
-    return prepareChangeLog([title], scopes);
+    const { changelog, includedPrNumbers } = await prepareChangeLog([title], scopes);
+    return { changelog, includedPrNumbers };
 }
 
 /**
@@ -39347,8 +39396,10 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
         throw new Error(`Could not commits when comparing ${baseBranch}...${headBranch}`);
     }
 
+    const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
     return {
-        changelog: await prepareChangeLog(commitMessages, scopes),
+        changelog,
+        includedPrNumbers,
         authors: Array.from(authors.values()),
     };
 }
@@ -39833,7 +39884,7 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }> }>}
+ * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }>, includedPrNumbers: number[] }>}
  */
 async function createChangelog(
     method,
@@ -39845,25 +39896,26 @@ async function createChangelog(
 ) {
     let changelog;
     let authors = [];
+    let includedPrNumbers = [];
 
     switch (method) {
         case 'pull_request_description':
             changelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            ({ changelog, authors } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
+            ({ changelog, authors, includedPrNumbers } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
             break;
         case 'pull_request_title':
-            changelog = await getChangelogFromPullRequestTitle(octokit, scopes, context);
+            ({ changelog, includedPrNumbers } = await getChangelogFromPullRequestTitle(octokit, scopes, context));
             break;
         case 'commits_compare':
-            ({ changelog, authors } = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes));
+            ({ changelog, authors, includedPrNumbers } = await getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes));
             break;
         default:
             core.error(`Unrecognized "changelog-method" input: ${method}`);
             break;
     }
-    return { changelog, authors };
+    return { changelog, authors, includedPrNumbers };
 }
 
 /**
@@ -39914,7 +39966,7 @@ async function run() {
         throw new Error('The changelog-scopes input cannot be parsed as JSON.');
     }
 
-    const { changelog, authors } = await createChangelog(
+    const { changelog, authors, includedPrNumbers } = await createChangelog(
         changelogMethod,
         octokit,
         scopes,
@@ -39931,6 +39983,7 @@ async function run() {
             head: headBranch,
             base: baseBranch,
             changelog,
+            includedPrNumbers,
         });
     }
 
