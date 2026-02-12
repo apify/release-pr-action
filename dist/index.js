@@ -39213,12 +39213,10 @@ const CHANGELOG_REGEX = new RegExp(`${CHANGELOG_ANNOTATION}[\\s\\S]*?${CHANGELOG
 
 /**
  * Format included PRs as a markdown list with links
- * @param {string} owner - repository owner
- * @param {string} repo - repository name
  * @param {number[]} prNumbers - array of PR numbers
  * @returns {string} - markdown formatted list of PR links
  */
-function formatIncludedPrsList(owner, repo, prNumbers) {
+function formatIncludedPrsList(prNumbers) {
     if (!prNumbers || prNumbers.length === 0) {
         return '';
     }
