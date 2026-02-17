@@ -38,7 +38,7 @@ function formatIncludedPrsList(prNumbers) {
  */
 async function createOrUpdatePullRequest(octokit, options) {
     const { owner, repo, head, base, changelog, includedPrNumbers, ...theRestOptions } = options;
-    const includedPrsSection = formatIncludedPrsList(owner, repo, includedPrNumbers);
+    const includedPrsSection = formatIncludedPrsList(includedPrNumbers);
     const body = `${openai ? PULL_REQUEST_BODY_NOTE_V2 : PULL_REQUEST_BODY_NOTE}\n`
         + `${CHANGELOG_ANNOTATION}\n${changelog}${CHANGELOG_ANNOTATION}${includedPrsSection}`;
     try {
@@ -413,4 +413,5 @@ module.exports = {
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
     findOriginalAuthorOfCopilotCommit,
+    formatIncludedPrsList,
 };

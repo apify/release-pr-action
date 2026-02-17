@@ -70,7 +70,7 @@ async function structureChangelog(changelogStructure, scopes) {
     };
 }
 
-// Regex to match merge commits from master or release branches
+// Regex to match merge commits from master or release branches to extract the PR number from the commit message.
 const MERGE_COMMIT_REGEX = /^Merge (branch '(master|main|release\/[^']+)'|pull request #\d+ from)/i;
 
 /**
