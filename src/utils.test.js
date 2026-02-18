@@ -1,4 +1,4 @@
-const { findOriginalAuthorOfCopilotCommit } = require('./utils.js');
+const { findOriginalAuthorOfCopilotCommit, formatIncludedPrsList } = require('./utils.js');
 
 describe('Co-authored-by parsing in Copilot commits', () => {
     it('parses login from noreply email', () => {
@@ -94,4 +94,15 @@ Co-authored-by: Some User <12345+user_name@users.noreply.github.com>
 
         expect(authorLogin).toEqual(null);
     });
+});
+
+test('formatIncludedPrsList formats PR numbers correctly', () => {
+    const result = formatIncludedPrsList([1, 5, 10]);
+    expect(result).toBe('\n\n## Included Pull Requests\n- #1\n- #5\n- #10');
+});
+
+test('formatIncludedPrsList handles empty input', () => {
+    expect(formatIncludedPrsList([])).toBe('');
+    expect(formatIncludedPrsList(null)).toBe('');
+    expect(formatIncludedPrsList(undefined)).toBe('');
 });
