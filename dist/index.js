@@ -39313,6 +39313,12 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     if (!commits) throw new Error('Pull request has no commits!');
 
     for (const commit of commits) {
+        if (!commit.author) {
+            // if the commit is created by apify-service-account
+            // (e.g. sync_branches_push job) there is no commit author (no associated Github user)
+            continue;
+        }
+
         const { message, author } = commit.commit;
         const { login } = commit.author;
         commitMessages.push(message);
@@ -39372,6 +39378,12 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
 
     for (const page of compareResponse) {
         for (const commit of page.commits) {
+            if (!commit.author) {
+                // if the commit is created by apify-service-account
+                // (e.g. sync_branches_push job) there is no commit author (no associated Github user)
+                continue;
+            }
+
             const { message, author } = commit.commit;
             const { login } = commit.author;
             commitMessages.push(message);
