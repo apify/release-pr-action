@@ -39030,7 +39030,12 @@ const { WebClient } = __nccwpck_require__(431);
 async function getEmailToSlackIdMap(slackToken) {
     core.info(`Trying to fetch Slack users`);
     const slack = new WebClient(slackToken);
-    const { members } = await slack.users.list({});
+    const members = await slack.paginate(
+        'users.list',
+        {},
+        () => false,
+        (acc, page) => [...(acc || []), ...(page.members || [])],
+    );
     core.info(`Fetched ${members.length} Slack users`);
 
     // Create mapping from emails to Slack IDs.
