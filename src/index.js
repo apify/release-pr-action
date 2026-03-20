@@ -179,7 +179,12 @@ async function run() {
 
         try {
             core.info(`Fetching Slack IDs for changelog authors`);
-            authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+            authorsWithSlackIds = await getAuthorsWithSlackIds(
+                githubOrgToken,
+                slackToken,
+                authors,
+                github.context.repo,
+            );
         } catch (e) {
             // Let's not kill the whole action.
             core.warning(`Failed getting authors with Slack IDs: ${e}`);
