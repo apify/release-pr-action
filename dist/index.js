@@ -39048,7 +39048,7 @@ async function getEmailToSlackIdMap(slackToken) {
 }
 
 /**
- * @param {{ githubToken: string }}
+ * @param {{ githubToken: string, repo?: { owner: string; repo: string } }}
  *
  * @return {Promise<{
  *     login: string,
@@ -39056,15 +39056,15 @@ async function getEmailToSlackIdMap(slackToken) {
  *     organizationVerifiedDomainEmails: string[],
  * }[]>}
  */
-async function fetchGithubOrgUsers({ githubToken }) {
-    const query = `query GetOrganizationVerifiedEmails($after: String) {
-        repository(name: "release-pr-action", owner: "apify") {
+async function fetchGithubOrgUsers({ githubToken, repo }) {
+    const query = `query GetOrganizationVerifiedEmails($after: String, $repo: String!, $owner: String!) {
+        repository(name: $repo, owner: $owner) {
           collaborators(first: 100, after: $after) {
             edges {
               node {
                 login
                 name
-                organizationVerifiedDomainEmails(login: "apify") {}
+                organizationVerifiedDomainEmails(login: $owner) {}
               }
             }
             pageInfo {
@@ -39091,6 +39091,8 @@ async function fetchGithubOrgUsers({ githubToken }) {
             body: JSON.stringify({
                 query,
                 variables: {
+                    owner: repo?.owner || 'apify',
+                    repo: repo?.repo || 'release-pr-action',
                     after: endCursor ?? null,
                 },
             }),
@@ -39113,11 +39115,14 @@ async function fetchGithubOrgUsers({ githubToken }) {
 
 /**
  * Create mapping from GitHub usernames to @apify.com emails.
+ *
+ * @param {{ githubToken: string, repo?: { owner: string; repo: string } }}
+ *
  * @returns {Promise<{ [login: string]: string }>}
  */
-async function getGitHubLoginToEmailMap(githubToken) {
+async function getGitHubLoginToEmailMap({ githubToken, repo }) {
     core.info('Trying to fetch @apify.com email addresses for Apify org members');
-    const githubOrgUsers = await fetchGithubOrgUsers({ githubToken });
+    const githubOrgUsers = await fetchGithubOrgUsers({ githubToken, repo });
 
     core.info(`Fetched ${githubOrgUsers.length} Apify org members`);
 
@@ -39135,15 +39140,17 @@ async function getGitHubLoginToEmailMap(githubToken) {
  * @param {string} githubToken
  * @param {string} slackToken
  * @param {array<{ name: string, email: string, login: string }>} authors
+ * @param {{ owner: string; repo: string }} repo
+ *
  * @returns {Promise<array<{ name: string, email: string, login: string, slackId?: string }>>}
  */
-async function getAuthorsWithSlackIds(githubToken, slackToken, authors) {
+async function getAuthorsWithSlackIds(githubToken, slackToken, authors, repo = undefined) {
     if (!authors.length) {
         core.info('No authors to fetch Slack IDs for');
         return authors;
     }
 
-    const githubLoginToEmailMap = await getGitHubLoginToEmailMap(githubToken);
+    const githubLoginToEmailMap = await getGitHubLoginToEmailMap({ githubToken, repo });
     const emailToSlackIdMap = await getEmailToSlackIdMap(slackToken);
 
     return authors.map((author) => {
@@ -40043,7 +40050,12 @@ async function run() {
 
         try {
             core.info(`Fetching Slack IDs for changelog authors`);
-            authorsWithSlackIds = await getAuthorsWithSlackIds(githubOrgToken, slackToken, authors);
+            authorsWithSlackIds = await getAuthorsWithSlackIds(
+                githubOrgToken,
+                slackToken,
+                authors,
+                github.context.repo,
+            );
         } catch (e) {
             // Let's not kill the whole action.
             core.warning(`Failed getting authors with Slack IDs: ${e}`);
