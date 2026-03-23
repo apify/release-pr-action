@@ -69,10 +69,8 @@ async function fetchGithubOrgUsers({ githubToken, repo }) {
             body: JSON.stringify({
                 query,
                 variables: {
-                    repo: 'release-pr-action',
-                    owner: 'apify',
-                    ...(repo ?? {}),
-
+                    owner: repo?.owner || 'apify',
+                    repo: repo?.repo || 'release-pr-action',
                     after: endCursor ?? null,
                 },
             }),
