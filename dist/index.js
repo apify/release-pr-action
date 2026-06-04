@@ -56069,7 +56069,7 @@ async function prepareChangeLog(gitMessages, scopes) {
 
 async function improveChangeLog(changeList) {
     if (!openai) throw new Error('Cannot improve changelog, missing open AI token.');
-    const completion = await openai.completions.create({
+    const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
             {
@@ -56089,7 +56089,7 @@ async function improveChangeLog(changeList) {
         stream: false,
     }, { timeout: 20_000 });
 
-    const changelogMessage = completion.choices.at(0)?.text;
+    const changelogMessage = completion.choices.at(0)?.message?.content;
 
     if (!changelogMessage) {
         throw new Error('Cannot generate improved changelog.');
