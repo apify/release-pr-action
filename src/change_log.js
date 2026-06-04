@@ -1,4 +1,3 @@
-const { text } = require('node:stream/consumers');
 const core = require('@actions/core');
 const commitParser = require('conventional-commits-parser');
 
