@@ -126,8 +126,8 @@ Note that you need to **manually build the code and commit the `dist` folder wit
 ### Local setup
 
 1. Run `fnm use` (or `nvm`, or any other node manager you use).
-2. Run `npm install`.
-3. Run `npm run watch`.
+2. Run `pnpm install`.
+3. Run `pnpm run watch`.
 
 ### Development workflow
 
@@ -148,7 +148,7 @@ VSCode.
 
 ### Submit changes
 
-1. If needed, run `npm run build` and commit and push any remaining changes.
-2. Run `npm run test`.
+1. If needed, run `pnpm run build` and commit and push any remaining changes.
+2. Run `pnpm run test`.
 3. Merge the PR.
 4. Publish a new version of action using new release (It needs to be done manually).
