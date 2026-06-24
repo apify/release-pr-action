@@ -50,6 +50,13 @@ inputs:
   github-org-token:
     required: false
     description: 'Github token with read:org scope to access Apify org members. Needed to map commit authors onto Slack IDs.'
+  ignore-authors:
+    required: false
+    default: 'Copilot,Claude'
+    description: >-
+      Comma-separated list of GitHub logins to exclude from the changelog authors (matched case-insensitively).
+      Applies to both commit authors and `Co-authored-by` trailers.
+      GitHub bot accounts (type "Bot") are always excluded regardless of this list.
 outputs:
   github-changelog:
     description: 'Changelog content in GihHub markdown'
