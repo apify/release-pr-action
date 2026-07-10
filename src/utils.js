@@ -101,42 +101,13 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
 }
 
 /**
- * Parse the `ignore-authors` input into a set of normalized (lower-cased) GitHub logins.
- *
- * @param {string} input - comma-separated list of GitHub logins
- * @returns {Set<string>}
- */
-function parseIgnoredAuthors(input) {
-    return new Set(
-        (input || '')
-            .split(',')
-            .map((login) => login.trim().toLowerCase())
-            .filter(Boolean),
-    );
-}
-
-/**
- * Decide whether a contributor should be excluded from the changelog authors.
- * GitHub bot accounts are always excluded; everyone else is excluded only if their login is denied.
- *
- * @param {{ login?: string, type?: string }} contributor
- * @param {Set<string>} ignoredAuthors - normalized (lower-cased) logins to exclude
- * @returns {boolean}
- */
-function isIgnoredAuthor({ login, type }, ignoredAuthors) {
-    if (type === 'Bot') return true;
-    return !!login && ignoredAuthors.has(login.toLowerCase());
-}
-
-/**
  * Generate changelog from commits on release pull request.
  * @param {*} octokit             - authorized instance of github.rest client
  * @param {*} scopes              - convectional commits scopes to group changelog items
  * @param {*} context             - github action context
- * @param {Set<string>} ignoredAuthors - normalized (lower-cased) logins to exclude from authors
  * @returns {Promise<object>}
  */
-async function getChangelogFromPullRequestCommits(octokit, scopes, context, ignoredAuthors = new Set()) {
+async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     const commitMessages = [];
     const authors = new Map();
 
@@ -159,23 +130,7 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context, igno
         const { login } = commit.author;
         commitMessages.push(message);
 
-        // The commit author is a bot or is explicitly ignored.
-        if (!isIgnoredAuthor(commit.author, ignoredAuthors)) {
-            authors.set(login || author.email, { login, ...author });
-        }
-
-        for (const coauthor of getCommitCoauthors(message)) {
-            if (isIgnoredAuthor(coauthor, ignoredAuthors)) {
-                continue;
-            }
-
-            // Do not override existing authors.
-            if (authors.has(coauthor.login)) {
-                continue;
-            }
-
-            authors.set(coauthor.login || coauthor.email, coauthor);
-        }
+        authors.set(login || author.email, { login, ...author });
     }
 
     const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
@@ -205,10 +160,9 @@ async function getChangelogFromPullRequestTitle(octokit, scopes, context) {
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
  * @param {*} scopes          - convectional commits scopes to group changelog items
- * @param {Set<string>} ignoredAuthors - normalized (lower-cased) logins to exclude from authors
  * @returns {Promise<object>}
  */
-async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes, ignoredAuthors = new Set()) {
+async function getChangelogFromCompareBranches(octokit, context, baseBranch, headBranch, scopes) {
     const commitMessages = [];
     const authors = new Map();
 
@@ -229,23 +183,7 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
             const { login } = commit.author;
             commitMessages.push(message);
 
-            // The commit author is a bot or is explicitly ignored.
-            if (!isIgnoredAuthor(commit.author, ignoredAuthors)) {
-                authors.set(login || author.email, { login, ...author });
-            }
-
-            for (const coauthor of getCommitCoauthors(message)) {
-                if (isIgnoredAuthor(coauthor, ignoredAuthors)) {
-                    continue;
-                }
-
-                // Do not override existing authors.
-                if (authors.has(coauthor.login)) {
-                    continue;
-                }
-
-                authors.set(coauthor.login || coauthor.email, coauthor);
-            }
+            authors.set(login || author.email, { login, ...author });
         }
     }
 
@@ -404,62 +342,6 @@ async function sendReleaseNotesToSlack(slackToken, options) {
     });
 }
 
-const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<name>.+?) <(?<email>.+?)@(?<emailDomain>.+?)>/gim;
-
-// https://docs.github.com/en/enterprise-cloud@latest/admin/managing-iam/iam-configuration-reference/username-considerations-for-external-authentication#about-username-normalization
-const GITHUB_LOGIN_REGEX = /^[a-zA-Z0-9-]+$/i;
-
-/**
- * Parses the `Co-authored-by` trailers from a commit message.
- *
- * @param {string} commitMessage
- * @returns {{ login: string, name: string, email: string }[]} the commit co-authors, de-duplicated by login
- */
-function getCommitCoauthors(commitMessage) {
-    /** @type {RegExpExecArray | null} */
-    let match = null;
-    const coauthorsByLogin = new Map();
-
-    // The regex is global (`g` flag), so reset its state before iterating to keep this function idempotent.
-    COAUTHORED_BY_REGEX.lastIndex = 0;
-
-    // eslint-disable-next-line no-cond-assign
-    while ((match = COAUTHORED_BY_REGEX.exec(commitMessage)) != null) {
-        const { name, email, emailDomain } = match.groups;
-        const trimmedName = name && name.trim();
-
-        let login = null;
-        if (emailDomain === 'users.noreply.github.com' && email && email.includes('+')) {
-            const [, maybeLogin] = email.split('+');
-
-            if (GITHUB_LOGIN_REGEX.test(maybeLogin)) {
-                login = maybeLogin;
-            }
-        }
-
-        if (!login && trimmedName && GITHUB_LOGIN_REGEX.test(trimmedName)) {
-            login = trimmedName;
-        }
-
-        if (!login) {
-            // eslint-disable-next-line no-console
-            console.warn(`WARNING: could not parse the login from the "Co-authored-by" trailer of a commit message`, {
-                name,
-                email: `${email}@${emailDomain}`,
-            });
-            continue;
-        }
-
-        // Keep the first occurrence of each login.
-        const normalizedLogin = login.toLowerCase();
-        if (!coauthorsByLogin.has(normalizedLogin)) {
-            coauthorsByLogin.set(normalizedLogin, { login, name: trimmedName, email: `${email}@${emailDomain}` });
-        }
-    }
-
-    return Array.from(coauthorsByLogin.values());
-}
-
 module.exports = {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
@@ -467,8 +349,6 @@ module.exports = {
     getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
-    getCommitCoauthors,
-    parseIgnoredAuthors,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
     formatIncludedPrsList,

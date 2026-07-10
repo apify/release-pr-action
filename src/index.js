@@ -13,7 +13,6 @@ const {
     getReleaseNameInfo,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
-    parseIgnoredAuthors,
 } = require('./utils');
 
 /**
@@ -39,7 +38,6 @@ function alreadyExistsExit(alreadyExists, releaseName) {
  * @param {*} context         - github action context
  * @param {string} baseBranch - base branch/commit to start comparison from
  * @param {string} headBranch - head branch/commit to start comparison from
- * @param {Set<string>} ignoredAuthors - normalized (lower-cased) logins to exclude from authors
  * @returns {Promise<{ changelog: string, authors: array<{ name: string, email: string, login: string }>, includedPrNumbers: number[] }>}
  */
 async function createChangelog(
@@ -49,7 +47,6 @@ async function createChangelog(
     context,
     baseBranch,
     headBranch,
-    ignoredAuthors = new Set(),
 ) {
     let changelog;
     let authors = [];
@@ -60,14 +57,14 @@ async function createChangelog(
             changelog = await getChangelogFromPullRequestDescription(octokit, context);
             break;
         case 'pull_request_commits':
-            ({ changelog, authors, includedPrNumbers } = await getChangelogFromPullRequestCommits(octokit, scopes, context, ignoredAuthors));
+            ({ changelog, authors, includedPrNumbers } = await getChangelogFromPullRequestCommits(octokit, scopes, context));
             break;
         case 'pull_request_title':
             ({ changelog, includedPrNumbers } = await getChangelogFromPullRequestTitle(octokit, scopes, context));
             break;
         case 'commits_compare':
             ({ changelog, authors, includedPrNumbers } = await getChangelogFromCompareBranches(
-                octokit, context, baseBranch, headBranch, scopes, ignoredAuthors,
+                octokit, context, baseBranch, headBranch, scopes,
             ));
             break;
         default:
@@ -94,7 +91,6 @@ async function run() {
     const slackChannel = core.getInput('slack-channel');
     const githubChangelogFileDestination = core.getInput('github-changelog-file-destination');
     const fetchAuthorSlackIds = core.getBooleanInput('fetch-author-slack-ids');
-    const ignoredAuthors = parseIgnoredAuthors(core.getInput('ignore-authors'));
 
     const octokit = github.getOctokit(githubToken);
     const context = {
@@ -133,7 +129,6 @@ async function run() {
         context,
         baseBranch,
         headBranch,
-        ignoredAuthors,
     );
 
     if (createReleasePullRequest) {
