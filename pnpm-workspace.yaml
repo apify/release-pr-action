@@ -3,7 +3,7 @@
 # Recording the exact tarball URL pnpm got from the registry keeps cold-store CI installs
 # from 404'ing on @apify-packages tarballs.
 lockfileIncludeTarballUrl: true
-minimumReleaseAge: 1440 # 24 hours
+minimumReleaseAge: 10080 # 7 days
 strictDepBuilds: false
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 43200 # 30 days
