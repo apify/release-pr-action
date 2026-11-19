@@ -11,6 +11,7 @@ const {
     getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
+    resolveMergedPullRequest,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 } = require('./utils');
@@ -101,6 +102,15 @@ async function run() {
         // github.context.repo is getter
         repo: github.context.repo,
     };
+
+    // A push to the base branch carries neither the release branch nor the pull request, so look them up.
+    if (context.eventName === 'push' && context.refName === baseBranch) {
+        const pull = await resolveMergedPullRequest(octokit, context, baseBranch);
+        if (pull) {
+            context.headRef = pull.head.ref;
+            context.payload = { ...context.payload, pull_request: pull };
+        }
+    }
 
     const {
         releaseName,
