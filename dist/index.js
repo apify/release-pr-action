@@ -56533,6 +56533,29 @@ async function getReleaseNameFromReleases(octokit, context, releaseNamePrefix) {
 }
 
 /**
+ * On a push to the base branch (i.e. a merged release pull request), find the pull request that was merged
+ * by this commit. Its head branch carries the release name and its description carries the changelog, neither of
+ * which is available from the `push` event itself.
+ * @param {*} octokit        - authorized instance of github.rest client
+ * @param {*} context        - github action context
+ * @param {string} baseBranch - base branch the pull request was merged into
+ * @returns {Promise<object|null>} merged pull request, or null if the commit was not a merged pull request
+ */
+async function resolveMergedPullRequest(octokit, context, baseBranch) {
+    const { data: pulls } = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
+        ...context.repo,
+        commit_sha: context.sha,
+    });
+    const pull = pulls.find((pr) => pr.merged_at && pr.base.ref === baseBranch && pr.merge_commit_sha === context.sha);
+    if (pull) {
+        core.info(`Commit ${context.sha} merged pull request #${pull.number} from ${pull.head.ref}`);
+    } else {
+        core.info(`Commit ${context.sha} is not a merged pull request into ${baseBranch}`);
+    }
+    return pull || null;
+}
+
+/**
  * Get next release name to be published alongside with head branch (or current branch in case of 'push' event name)
  * and in case of 'tag' method also check if release already exists on given commit
  * @param {*} octokit                - authorized instance of github.rest client
@@ -56563,7 +56586,9 @@ async function getReleaseNameInfo(octokit, context, releaseNamePrefix, releaseNa
                 headBranch = headRef;
                 break;
             case 'push':
-                headBranch = refName;
+                // On a push to the base branch, `headRef` holds the head branch of the merged pull request
+                // (see `resolveMergedPullRequest`).
+                headBranch = headRef || refName;
                 break;
             default:
                 throw new Error(`Do not know how to handle event ${eventName}`);
@@ -56640,6 +56665,7 @@ async function sendReleaseNotesToSlack(slackToken, options) {
 }
 
 module.exports = {
+    resolveMergedPullRequest,
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
@@ -77393,6 +77419,7 @@ const {
     getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
+    resolveMergedPullRequest,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
 } = __nccwpck_require__(38083);
@@ -77483,6 +77510,22 @@ async function run() {
         // github.context.repo is getter
         repo: github.context.repo,
     };
+
+    // A push to the base branch carries neither the release branch nor the pull request, so look them up.
+    if (context.eventName === 'push' && context.refName === baseBranch) {
+        const pull = await resolveMergedPullRequest(octokit, context, baseBranch);
+        if (pull) {
+            context.headRef = pull.head.ref;
+            context.payload = { ...context.payload, pull_request: pull };
+        } else if (releaseNameMethod === 'branch' || changelogMethod.startsWith('pull_request_')) {
+            // Without a merged PR there is no release branch or PR to read the changelog from.
+            core.warning(
+                `The push to "${baseBranch}" is not associated with a merged pull request, `
+                + `but release-name-method "${releaseNameMethod}" and changelog-method "${changelogMethod}" require one. Exiting..`,
+            );
+            process.exit(0);
+        }
+    }
 
     const {
         releaseName,
