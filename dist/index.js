@@ -77517,6 +77517,13 @@ async function run() {
         if (pull) {
             context.headRef = pull.head.ref;
             context.payload = { ...context.payload, pull_request: pull };
+        } else if (releaseNameMethod === 'branch' || changelogMethod.startsWith('pull_request_')) {
+            // Without a merged PR there is no release branch or PR to read the changelog from.
+            core.warning(
+                `The push to "${baseBranch}" is not associated with a merged pull request, `
+                + `but release-name-method "${releaseNameMethod}" and changelog-method "${changelogMethod}" require one. Exiting..`,
+            );
+            process.exit(0);
         }
     }
 
