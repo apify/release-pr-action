@@ -56436,7 +56436,7 @@ async function extractCommitAuthors(authors, octokit, context, commit) {
 
         // Sometimes, names and emails might be missing. So we can't overwrite the whole object,
         // and we just selectively fill in the values that are present.
-        for (const key of ["login", "name", "email"]) {
+        for (const key of ["name", "email"]) {
             const value = userObject[key] || fallbackObject?.[key];
             if (value) storedAuthorObject[key] = value;
         }
