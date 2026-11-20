@@ -56401,6 +56401,48 @@ const shouldIgnoreCommit = (commitMessage) =>
     commitMessage.startsWith("chore(ci): release apify packages [ignore]") || /^Merge pull request #\d+ from apify\/master/.test(commitMessage);
 
 
+const COAUTHORED_BY_REGEX = /^Co-authored-by: (?<name>.+?) <(?<email>.+?)@(?<emailDomain>.+?)>/gim;
+
+// https://docs.github.com/en/enterprise-cloud@latest/admin/managing-iam/iam-configuration-reference/username-considerations-for-external-authentication#about-username-normalization
+const GITHUB_LOGIN_REGEX = /^[a-zA-Z0-9-]+$/i;
+
+/**
+ * Parses the `Co-authored-by` trailers from a commit message.
+ *
+ * @param {string} commitMessage
+ * @returns {{ login: string, name: string, email: string }[]} the commit co-authors, de-duplicated by login
+ */
+function getCommitCoauthors(commitMessage) {
+    const coauthorsByLogin = new Map();
+
+    for (const match of commitMessage.matchAll(COAUTHORED_BY_REGEX)) {
+        const { name, email, emailDomain } = match.groups;
+        const trimmedName = name && name.trim();
+
+        let login = null;
+        if (emailDomain === 'users.noreply.github.com' && email.includes('+')) {
+            const [, maybeLogin] = email.split('+');
+            if (GITHUB_LOGIN_REGEX.test(maybeLogin)) login = maybeLogin;
+        }
+
+        if (!login && trimmedName && GITHUB_LOGIN_REGEX.test(trimmedName)) {
+            login = trimmedName;
+        }
+
+        if (!login) {
+            core.warning(`Could not parse the login from "Co-authored-by" trailer: ${name} <${email}@${emailDomain}>`);
+            continue;
+        }
+
+        const normalizedLogin = login.toLowerCase();
+        if (!coauthorsByLogin.has(normalizedLogin)) {
+            coauthorsByLogin.set(normalizedLogin, { login, name: trimmedName, email: `${email}@${emailDomain}` });
+        }
+    }
+
+    return Array.from(coauthorsByLogin.values());
+}
+
 const BOT_USER_REGEX = /^(github-actions|dependabot|apify-factory|claude|copilot|apify-service-account|web-flow)(\[bot\])?$/i;
 
 /**
@@ -56446,6 +56488,9 @@ async function getDetailsFromCommit(authors, octokit, context, commit) {
     // first is the github object with `login`, second is the raw git value
     addAuthor(commit.author, commit.commit.author);
     addAuthor(commit.committer, commit.commit.committer);
+    for (const coauthor of getCommitCoauthors(commit.commit.message)) {
+        addAuthor(coauthor);
+    }
 
     const commitPullNumber = /^[^\n]+\(#(\d+)\)/.exec(commit.commit.message)?.[1];
     if (commitPullNumber) {
@@ -56729,6 +56774,7 @@ module.exports = {
     getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
+    getCommitCoauthors,
     createGithubReleaseFn,
     sendReleaseNotesToSlack,
     formatIncludedPrsList,

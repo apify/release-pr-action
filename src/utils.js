@@ -104,7 +104,7 @@ const shouldIgnoreCommit = (commitMessage) =>
     commitMessage.startsWith("chore(ci): release apify packages [ignore]") || /^Merge pull request #\d+ from apify\/master/.test(commitMessage);
 
 
-const BOT_USER_REGEX = /^(github-actions|dependabot|apify-factory|claude|copilot|apify-service-account|web-flow)(\[bot\])?$/i;
+const BOT_USER_REGEX = /^(github-actions|dependabot|apify-factory|claude|copilot|cursor|codex|apify-service-account|web-flow)(\[bot\])?$/i;
 
 /**
  * Get all authors of a commit.
@@ -114,7 +114,7 @@ const BOT_USER_REGEX = /^(github-actions|dependabot|apify-factory|claude|copilot
  * @param {*} commit
  * @returns
  */
-async function getDetailsFromCommit(authors, octokit, context, commit) {
+async function extractCommitAuthors(authors, octokit, context, commit) {
     let detectedHumanAuthors = 0;
 
     const addAuthor = (userObject, fallbackObject) => {
@@ -194,7 +194,7 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
         if (shouldIgnoreCommit(commit.commit.message)) continue;
 
         commitMessages.push(commit.commit.message);
-        await getDetailsFromCommit(authors, octokit, context, commit);
+        await extractCommitAuthors(authors, octokit, context, commit);
     }
 
     const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
@@ -240,7 +240,7 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
             if (shouldIgnoreCommit(commit.commit.message)) continue;
 
             commitMessages.push(commit.commit.message);
-            await getDetailsFromCommit(authors, octokit, context, commit);
+            await extractCommitAuthors(authors, octokit, context, commit);
         }
     }
 
