@@ -56397,6 +56397,71 @@ async function getChangelogFromPullRequestDescription(octokit, context) {
     return changelog;
 }
 
+const shouldIgnoreCommit = (commitMessage) =>
+    commitMessage.startsWith("chore(ci): release apify packages [ignore]") || /^Merge pull request #\d+ from apify\/master/.test(commitMessage);
+
+
+const BOT_USER_REGEX = /^(github-actions|dependabot|apify-factory|claude|copilot|apify-service-account|web-flow)(\[bot\])?$/i;
+
+/**
+ * Get all authors of a commit.
+ * @param {Map<string, {login: string, name?: string, email?: string}>} authors
+ * @param {ReturnType<typeof import('@actions/github').getOctokit>} octokit
+ * @param {*} context
+ * @param {*} commit
+ * @returns
+ */
+async function getDetailsFromCommit(authors, octokit, context, commit) {
+    let addedAuthors = 0;
+
+    const addAuthor = (userObject, fallbackObject) => {
+        if (!userObject || !userObject.login) {
+            return;
+        }
+
+        if (BOT_USER_REGEX.test(userObject.login)) {
+            return;
+        }
+        addedAuthors++;
+
+        let storedAuthorObject = authors.get(userObject.login);
+        if (!storedAuthorObject) {
+            storedAuthorObject = {
+                login: userObject.login,
+            };
+            authors.set(userObject.login, storedAuthorObject);
+        }
+
+        for (const key of ["login", "name", "email"]) {
+            const value = userObject[key] || fallbackObject?.[key];
+            if (value) storedAuthorObject[key] = value;
+        }
+    };
+
+    addAuthor(commit.author, commit.commit.author);
+    addAuthor(commit.committer, commit.commit.committer);
+
+    const commitPullNumber = /^[^\n]+\(#(\d+)\)/.exec(commit.commit.message)?.[1];
+    if (commitPullNumber) {
+        try {
+            const pull = await octokit.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: commitPullNumber,
+            });
+            addAuthor(pull.data.user);
+            addAuthor(pull.data.merged_by);
+            addAuthor(pull.data.assignee);
+        } catch (error) {
+            core.warning(`Failed to fetch pull request #${commitPullNumber} for commit ${commit.sha}: ${error.message}`);
+        }
+    } else {
+        core.warning(`Commit ${commit.sha} has no pull request number in its message`);
+    }
+
+    if (addedAuthors === 0) core.warning(`Commit ${commit.sha} has no authors`);
+}
+
 /**
  * Generate changelog from commits on release pull request.
  * @param {*} octokit             - authorized instance of github.rest client
@@ -56417,17 +56482,10 @@ async function getChangelogFromPullRequestCommits(octokit, scopes, context) {
     if (!commits) throw new Error('Pull request has no commits!');
 
     for (const commit of commits) {
-        if (!commit.author) {
-            // if the commit is created by apify-service-account
-            // (e.g. sync_branches_push job) there is no commit author (no associated Github user)
-            continue;
-        }
+        if (shouldIgnoreCommit(commit.commit.message)) continue;
 
-        const { message, author } = commit.commit;
-        const { login } = commit.author;
-        commitMessages.push(message);
-
-        authors.set(login || author.email, { login, ...author });
+        commitMessages.push(commit.commit.message);
+        await getDetailsFromCommit(authors, octokit, context, commit);
     }
 
     const { changelog, includedPrNumbers } = await prepareChangeLog(commitMessages, scopes);
@@ -56470,17 +56528,10 @@ async function getChangelogFromCompareBranches(octokit, context, baseBranch, hea
 
     for (const page of compareResponse) {
         for (const commit of page.commits) {
-            if (!commit.author) {
-                // if the commit is created by apify-service-account
-                // (e.g. sync_branches_push job) there is no commit author (no associated Github user)
-                continue;
-            }
+            if (shouldIgnoreCommit(commit.commit.message)) continue;
 
-            const { message, author } = commit.commit;
-            const { login } = commit.author;
-            commitMessages.push(message);
-
-            authors.set(login || author.email, { login, ...author });
+            commitMessages.push(commit.commit.message);
+            await getDetailsFromCommit(authors, octokit, context, commit);
         }
     }
 
@@ -56669,6 +56720,7 @@ module.exports = {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
+    getCommitAuthors: getDetailsFromCommit,
     getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
