@@ -429,7 +429,6 @@ module.exports = {
     createOrUpdatePullRequest,
     getChangelogFromPullRequestDescription,
     getChangelogFromPullRequestCommits,
-    getCommitAuthors: getDetailsFromCommit,
     getChangelogFromPullRequestTitle,
     getChangelogFromCompareBranches,
     getReleaseNameInfo,
