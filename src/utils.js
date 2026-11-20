@@ -115,7 +115,7 @@ const BOT_USER_REGEX = /^(github-actions|dependabot|apify-factory|claude|copilot
  * @returns
  */
 async function getDetailsFromCommit(authors, octokit, context, commit) {
-    let addedAuthors = 0;
+    let detectedHumanAuthors = 0;
 
     const addAuthor = (userObject, fallbackObject) => {
         if (!userObject || !userObject.login) {
@@ -125,22 +125,28 @@ async function getDetailsFromCommit(authors, octokit, context, commit) {
         if (BOT_USER_REGEX.test(userObject.login)) {
             return;
         }
-        addedAuthors++;
+
+        detectedHumanAuthors++;
 
         let storedAuthorObject = authors.get(userObject.login);
         if (!storedAuthorObject) {
+            // if this author is not yet in the map, add them
             storedAuthorObject = {
                 login: userObject.login,
             };
             authors.set(userObject.login, storedAuthorObject);
         }
 
+        // Sometimes, names and emails might be missing. So we can't overwrite the whole object,
+        // and we just selectively fill in the values that are present.
         for (const key of ["login", "name", "email"]) {
             const value = userObject[key] || fallbackObject?.[key];
             if (value) storedAuthorObject[key] = value;
         }
     };
 
+
+    // first is the github object with `login`, second is the raw git value
     addAuthor(commit.author, commit.commit.author);
     addAuthor(commit.committer, commit.commit.committer);
 
@@ -162,7 +168,7 @@ async function getDetailsFromCommit(authors, octokit, context, commit) {
         core.warning(`Commit ${commit.sha} has no pull request number in its message`);
     }
 
-    if (addedAuthors === 0) core.warning(`Commit ${commit.sha} has no authors`);
+    if (detectedHumanAuthors === 0) core.warning(`Commit ${commit.sha} has no authors`);
 }
 
 /**
